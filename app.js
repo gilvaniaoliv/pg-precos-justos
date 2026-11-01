@@ -17,11 +17,27 @@
   const CFG = window.LOJA_CONFIG || {};
   const CHAVE_STORAGE_CARRINHO = "pg_precos_justos_carrinho_v1";
 
+  // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, etc.)
+  const SUBCATEGORIAS_PADRAO_POR_SLUG = {
+    "casa-e-comodos": ["Cozinha", "Sala", "Quarto", "Banheiro", "Lavanderia e Limpeza", "Jardim e Varanda"],
+    "casa-e-cozinha": ["Cozinha", "Sala", "Quarto", "Banheiro", "Lavanderia e Limpeza", "Jardim e Varanda"],
+    "cuidados-pessoais": ["Feminino", "Masculino", "Unissex", "Infantil", "Perfumaria", "Cabelo e Barba"],
+    "moda-e-acessorios": ["Feminino", "Masculino", "Unissex", "Infantil", "Relógios e Óculos", "Bolsas e Carteiras"],
+    "eletronicos-e-tecnologia": ["Áudio e Fones", "Celular e Carregadores", "Informática", "Smartwatch", "Caixas de Som"],
+    "eletronicos-e-acessorios": ["Áudio e Fones", "Celular e Carregadores", "Informática", "Smartwatch", "Caixas de Som"],
+    "ferramentas-e-utilidades": ["Ferramentas Manuais", "Elétrica e Iluminação", "Automotivo", "Organização"],
+    "utilidades-e-ferramentas": ["Ferramentas Manuais", "Elétrica e Iluminação", "Automotivo", "Organização"],
+    "infantil-e-brinquedos": ["Meninos", "Meninas", "Bebês", "Jogos e Educativos"],
+    "kits-e-promocoes": ["Kits Presente Masculino", "Kits Presente Feminino", "Kits para Casa", "Queima de Estoque"],
+    "ofertas-da-semana": ["Casa e Cômodos", "Masculino", "Feminino", "Eletrônicos"]
+  };
+
   // Estado da aplicação na memória
   const estado = {
     categorias: [],
     produtos: [],
     categoriaSelecionada: "todas",
+    subcategoriaSelecionada: "todas",
     termoBusca: "",
     carrinho: carregarCarrinhoSalvo(),
     modoDemo: false
@@ -328,14 +344,12 @@
       const [resCategorias, resProdutos] = await Promise.all([
         cliente
           .from("categorias")
-          .select("id, nome, slug, ordem")
+          .select("*")
           .order("ordem", { ascending: true })
           .order("nome", { ascending: true }),
         cliente
           .from("produtos_publicos")
-          .select(
-            "id, nome, descricao, categoria_id, categoria_nome, categoria_slug, foto_url, preco_venda, preco_medio_mercado, data_pesquisa, estoque, destaque, criado_em"
-          )
+          .select("*")
           .order("destaque", { ascending: false })
           .order("criado_em", { ascending: false })
       ]);
@@ -405,6 +419,19 @@
     }
   }
 
+  function obterSubcategoriasDaCategoria(cat) {
+    if (!cat) return [];
+    if (Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0) {
+      return cat.subcategorias;
+    }
+    const padrao = SUBCATEGORIAS_PADRAO_POR_SLUG[cat.slug] || [];
+    // Adiciona eventuais subcategorias cadastradas nos produtos dessa categoria
+    const extrasProdutos = estado.produtos
+      .filter((p) => String(p.categoria_id) === String(cat.id) && p.subcategoria)
+      .map((p) => String(p.subcategoria).trim());
+    return Array.from(new Set([...padrao, ...extrasProdutos])).filter(Boolean);
+  }
+
   function renderizarCategorias() {
     const container = document.getElementById("listaCategorias");
     if (!container) return;
@@ -430,11 +457,62 @@
       btn.addEventListener("click", () => selecionarCategoria(String(cat.id)));
       container.appendChild(btn);
     });
+
+    renderizarSubcategorias();
+  }
+
+  function renderizarSubcategorias() {
+    const containerSub = document.getElementById("listaSubcategorias");
+    if (!containerSub) return;
+
+    containerSub.textContent = "";
+
+    if (estado.categoriaSelecionada === "todas") {
+      containerSub.style.display = "none";
+      return;
+    }
+
+    const catAtiva = estado.categorias.find(
+      (c) => String(c.id) === String(estado.categoriaSelecionada)
+    );
+    const subcategorias = obterSubcategoriasDaCategoria(catAtiva);
+
+    if (subcategorias.length === 0) {
+      containerSub.style.display = "none";
+      return;
+    }
+
+    containerSub.style.display = "flex";
+
+    const btnTodasSub = document.createElement("button");
+    btnTodasSub.type = "button";
+    btnTodasSub.className =
+      "btn-subcategoria" + (estado.subcategoriaSelecionada === "todas" ? " ativa" : "");
+    btnTodasSub.textContent = `Tudo em ${catAtiva.nome}`;
+    btnTodasSub.addEventListener("click", () => selecionarSubcategoria("todas"));
+    containerSub.appendChild(btnTodasSub);
+
+    subcategorias.forEach((sub) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "btn-subcategoria" + (estado.subcategoriaSelecionada === sub ? " ativa" : "");
+      btn.textContent = sub;
+      btn.addEventListener("click", () => selecionarSubcategoria(sub));
+      containerSub.appendChild(btn);
+    });
   }
 
   function selecionarCategoria(idCategoria) {
     estado.categoriaSelecionada = idCategoria;
+    estado.subcategoriaSelecionada = "todas";
     renderizarCategorias();
+    renderizarVitrine();
+  }
+
+  function selecionarSubcategoria(nomeSubcategoria) {
+    estado.subcategoriaSelecionada = nomeSubcategoria;
+    renderizarSubcategorias();
     renderizarVitrine();
   }
 
@@ -510,10 +588,13 @@
     const divCorpo = document.createElement("div");
     divCorpo.className = "produto-corpo";
 
-    if (produto.categoria_nome) {
+    if (produto.categoria_nome || produto.subcategoria) {
       const spanCat = document.createElement("span");
       spanCat.className = "produto-categoria-tag";
-      spanCat.textContent = produto.categoria_nome;
+      spanCat.textContent =
+        produto.categoria_nome && produto.subcategoria
+          ? `${produto.categoria_nome} • ${produto.subcategoria}`
+          : produto.categoria_nome || produto.subcategoria;
       divCorpo.appendChild(spanCat);
     }
 
@@ -606,18 +687,28 @@
     if (!gradeProdutos) return;
 
     const termo = estado.termoBusca.trim().toLowerCase();
-    const filtrando = termo.length > 0 || estado.categoriaSelecionada !== "todas";
+    const filtrando =
+      termo.length > 0 ||
+      estado.categoriaSelecionada !== "todas" ||
+      estado.subcategoriaSelecionada !== "todas";
 
-    // Filtra os produtos pela categoria selecionada e pelo nome buscado
+    // Filtra os produtos pela categoria, subcategoria (cômodo/gênero) e pelo nome buscado
     const produtosFiltrados = estado.produtos.filter((p) => {
       const bateCategoria =
         estado.categoriaSelecionada === "todas" ||
         String(p.categoria_id) === estado.categoriaSelecionada;
 
-      const bateBusca =
-        !termo || String(p.nome || "").toLowerCase().includes(termo);
+      const bateSubcategoria =
+        estado.subcategoriaSelecionada === "todas" ||
+        String(p.subcategoria || "").toLowerCase() ===
+          estado.subcategoriaSelecionada.toLowerCase();
 
-      return bateCategoria && bateBusca;
+      const bateBusca =
+        !termo ||
+        String(p.nome || "").toLowerCase().includes(termo) ||
+        String(p.subcategoria || "").toLowerCase().includes(termo);
+
+      return bateCategoria && bateSubcategoria && bateBusca;
     });
 
     // Seção de Destaques: exibe na tela inicial quando não há busca/filtro específico ativo
@@ -643,7 +734,11 @@
         const catObj = estado.categorias.find(
           (c) => String(c.id) === estado.categoriaSelecionada
         );
-        tituloGrade.textContent = catObj ? `📦 ${catObj.nome}` : "📦 Produtos";
+        const nomeBase = catObj ? catObj.nome : "Produtos";
+        tituloGrade.textContent =
+          estado.subcategoriaSelecionada !== "todas"
+            ? `📦 ${nomeBase} • ${estado.subcategoriaSelecionada}`
+            : `📦 ${nomeBase}`;
       } else if (termo) {
         tituloGrade.textContent = `🔍 Resultados para "${estado.termoBusca.trim()}"`;
       } else {

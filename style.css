@@ -447,6 +447,41 @@ a {
   border-color: var(--cor-verde-escuro);
 }
 
+/* Barra secundária de Subcategorias (Cômodos, Masculino, Feminino, etc.) */
+.subcategorias-lista {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 4px;
+  margin-top: 6px;
+  border-top: 1px dashed var(--cor-borda);
+  scrollbar-width: none;
+}
+
+.subcategorias-lista::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-subcategoria {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--cor-verde-medio);
+  background-color: var(--cor-verde-claro);
+  color: var(--cor-verde-escuro);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-subcategoria.ativa {
+  background-color: var(--cor-laranja);
+  color: var(--cor-branco);
+  border-color: var(--cor-laranja);
+}
+
 /* ==========================================================================
    SEÇÕES DE PRODUTOS (DESTAQUES E GRADE PRINCIPAL)
    ========================================================================== */

@@ -1,21 +1,25 @@
 -- ============================================================================
 -- P&G PREÇOS JUSTOS - SCRIPT DE BANCO DE DADOS E SEGURANÇA (SUPABASE)
--- Fase 1: Tabelas, View Pública, Row Level Security (RLS), RPC e Storage
+-- Fase 1 + Atualização de Categorias e Subcategorias (Cômodos, Masculino/Feminino)
 -- ============================================================================
 
 -- Extensão para geração de UUIDs
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- 1. TABELA DE CATEGORIAS
+-- 1. TABELA DE CATEGORIAS (COM SUBCATEGORIAS INTERNAS)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.categorias (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL CHECK (char_length(trim(nome)) > 0 AND char_length(nome) <= 80),
     slug TEXT NOT NULL UNIQUE,
+    subcategorias TEXT[] NOT NULL DEFAULT '{}',
     ordem INTEGER NOT NULL DEFAULT 0,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Caso a tabela já tenha sido criada antes, adiciona a coluna subcategorias sem perder dados
+ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias TEXT[] NOT NULL DEFAULT '{}';
 
 -- ============================================================================
 -- 2. TABELA DE PRODUTOS (CONTÉM CAMPOS PÚBLICOS E CAMPOS RESTRITOS DO ADMIN)
@@ -25,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     nome TEXT NOT NULL CHECK (char_length(trim(nome)) > 0 AND char_length(nome) <= 160),
     descricao TEXT DEFAULT '',
     categoria_id UUID REFERENCES public.categorias(id) ON DELETE SET NULL,
+    subcategoria TEXT DEFAULT '',
     foto_url TEXT DEFAULT '',
 
     -- Preços e pesquisa de mercado (públicos na vitrine conforme regras)
@@ -46,9 +51,13 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Caso a tabela já tenha sido criada antes, adiciona a coluna subcategoria
+ALTER TABLE public.produtos ADD COLUMN IF NOT EXISTS subcategoria TEXT DEFAULT '';
+
 -- Índices para deixar filtros e buscas rápidos
 CREATE INDEX IF NOT EXISTS idx_produtos_ativo ON public.produtos(ativo);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_produtos_subcategoria ON public.produtos(subcategoria);
 CREATE INDEX IF NOT EXISTS idx_produtos_destaque ON public.produtos(destaque) WHERE ativo = true;
 
 -- Trigger para atualizar automaticamente o campo atualizado_em
@@ -154,10 +163,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.categorias TO authenticated
 -- ============================================================================
 -- 5. VIEW PÚBLICA DE PRODUTOS (ACESSÍVEL POR VISITANTES ANÔNIMOS)
 -- ============================================================================
--- Esta view expõe SOMENTE os campos públicos e SOMENTE de produtos ativos (ativo = true).
--- Como o visitante não tem acesso direto à tabela 'produtos', a view roda com
--- security_invoker = false (padrão seguro no Postgres para views de projeção controlada)
--- filtrando estritamente colunas e linhas.
 DROP VIEW IF EXISTS public.produtos_publicos;
 
 CREATE VIEW public.produtos_publicos AS
@@ -168,6 +173,7 @@ SELECT
     p.categoria_id,
     c.nome AS categoria_nome,
     c.slug AS categoria_slug,
+    p.subcategoria,
     p.foto_url,
     p.preco_venda,
     p.preco_medio_mercado,
@@ -258,7 +264,7 @@ BEGIN
         p_valor_total,
         v_produto.preco_custo,
         v_abaixo_minimo,
-         COALESCE(p_observacao, ''),
+        COALESCE(p_observacao, ''),
         auth.uid()
     )
     RETURNING id INTO v_venda_id;
@@ -283,7 +289,7 @@ VALUES (
     'produtos-fotos',
     'produtos-fotos',
     true,
-    5242880, -- Limite de 5MB por foto
+    5242880, -- Limite de 5 MB por foto
     ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -297,14 +303,12 @@ DROP POLICY IF EXISTS "Admin faz upload de fotos" ON storage.objects;
 DROP POLICY IF EXISTS "Admin atualiza fotos" ON storage.objects;
 DROP POLICY IF EXISTS "Admin exclui fotos" ON storage.objects;
 
--- Qualquer visitante pode VER as fotos dos produtos
 CREATE POLICY "Fotos publicas para leitura"
     ON storage.objects
     FOR SELECT
     TO anon, authenticated
     USING (bucket_id = 'produtos-fotos');
 
--- Apenas administradores autenticados podem enviar, alterar ou apagar fotos
 CREATE POLICY "Admin faz upload de fotos"
     ON storage.objects
     FOR INSERT
@@ -325,14 +329,58 @@ CREATE POLICY "Admin exclui fotos"
     USING (bucket_id = 'produtos-fotos');
 
 -- ============================================================================
--- 8. CATEGORIAS INICIAIS DE EXEMPLO (PODEM SER EDITADAS NO PAINEL)
+-- 8. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (CÔMODOS, MASCULINO/FEMININO, ETC.)
 -- ============================================================================
-INSERT INTO public.categorias (nome, slug, ordem)
-VALUES
-    ('Casa e Cozinha', 'casa-e-cozinha', 1),
-    ('Eletrônicos e Acessórios', 'eletronicos-e-acessorios', 2),
-    ('Cuidados Pessoais', 'cuidados-pessoais', 3),
-    ('Utilidades e Ferramentas', 'utilidades-e-ferramentas', 4),
-    ('Ofertas da Semana', 'ofertas-da-semana', 5)
-ON CONFLICT (slug) DO NOTHING;
+-- Remove categorias antigas sem produtos vinculados para deixar a nova estrutura limpa
+DELETE FROM public.categorias
+WHERE slug IN ('casa-e-cozinha', 'eletronicos-e-acessorios', 'utilidades-e-ferramentas', 'ofertas-da-semana')
+  AND id NOT IN (SELECT DISTINCT categoria_id FROM public.produtos WHERE categoria_id IS NOT NULL);
 
+INSERT INTO public.categorias (nome, slug, subcategorias, ordem)
+VALUES
+    (
+        'Casa e Cômodos',
+        'casa-e-comodos',
+        ARRAY['Cozinha', 'Sala', 'Quarto', 'Banheiro', 'Lavanderia e Limpeza', 'Jardim e Varanda'],
+        1
+    ),
+    (
+        'Cuidados Pessoais e Beleza',
+        'cuidados-pessoais',
+        ARRAY['Feminino', 'Masculino', 'Unissex', 'Infantil', 'Perfumaria', 'Cabelo e Barba'],
+        2
+    ),
+    (
+        'Moda, Bolsas e Acessórios',
+        'moda-e-acessorios',
+        ARRAY['Feminino', 'Masculino', 'Unissex', 'Infantil', 'Relógios e Óculos', 'Bolsas e Carteiras'],
+        3
+    ),
+    (
+        'Eletrônicos e Tecnologia',
+        'eletronicos-e-tecnologia',
+        ARRAY['Áudio e Fones', 'Celular e Carregadores', 'Informática', 'Smartwatch', 'Caixas de Som'],
+        4
+    ),
+    (
+        'Ferramentas e Utilidades',
+        'ferramentas-e-utilidades',
+        ARRAY['Ferramentas Manuais', 'Elétrica e Iluminação', 'Automotivo', 'Organização'],
+        5
+    ),
+    (
+        'Infantil e Brinquedos',
+        'infantil-e-brinquedos',
+        ARRAY['Meninos', 'Meninas', 'Bebês', 'Jogos e Educativos'],
+        6
+    ),
+    (
+        'Kits e Promoções',
+        'kits-e-promocoes',
+        ARRAY['Kits Presente Masculino', 'Kits Presente Feminino', 'Kits para Casa', 'Queima de Estoque'],
+        7
+    )
+ON CONFLICT (slug) DO UPDATE SET
+    nome = EXCLUDED.nome,
+    subcategorias = EXCLUDED.subcategorias,
+    ordem = EXCLUDED.ordem;

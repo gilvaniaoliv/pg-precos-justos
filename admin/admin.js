@@ -18,6 +18,51 @@
   const CFG = window.LOJA_CONFIG || {};
   let supabaseClient = null;
 
+  const CATEGORIAS_ORGANIZADAS_PADRAO = [
+    {
+      nome: "Casa e Cômodos",
+      slug: "casa-e-comodos",
+      subcategorias: ["Cozinha", "Sala", "Quarto", "Banheiro", "Lavanderia e Limpeza", "Jardim e Varanda"],
+      ordem: 1
+    },
+    {
+      nome: "Cuidados Pessoais e Beleza",
+      slug: "cuidados-pessoais",
+      subcategorias: ["Feminino", "Masculino", "Unissex", "Infantil", "Perfumaria", "Cabelo e Barba"],
+      ordem: 2
+    },
+    {
+      nome: "Moda, Bolsas e Acessórios",
+      slug: "moda-e-acessorios",
+      subcategorias: ["Feminino", "Masculino", "Unissex", "Infantil", "Relógios e Óculos", "Bolsas e Carteiras"],
+      ordem: 3
+    },
+    {
+      nome: "Eletrônicos e Tecnologia",
+      slug: "eletronicos-e-tecnologia",
+      subcategorias: ["Áudio e Fones", "Celular e Carregadores", "Informática", "Smartwatch", "Caixas de Som"],
+      ordem: 4
+    },
+    {
+      nome: "Ferramentas e Utilidades",
+      slug: "ferramentas-e-utilidades",
+      subcategorias: ["Ferramentas Manuais", "Elétrica e Iluminação", "Automotivo", "Organização"],
+      ordem: 5
+    },
+    {
+      nome: "Infantil e Brinquedos",
+      slug: "infantil-e-brinquedos",
+      subcategorias: ["Meninos", "Meninas", "Bebês", "Jogos e Educativos"],
+      ordem: 6
+    },
+    {
+      nome: "Kits e Promoções",
+      slug: "kits-e-promocoes",
+      subcategorias: ["Kits Presente Masculino", "Kits Presente Feminino", "Kits para Casa", "Queima de Estoque"],
+      ordem: 7
+    }
+  ];
+
   const estado = {
     modoDemo: false,
     usuario: null,
@@ -447,9 +492,45 @@
     }
   }
 
-  function obterNomeCategoria(categoriaId) {
+  function obterNomeCategoria(categoriaId, subcategoria) {
     const cat = estado.categorias.find((c) => String(c.id) === String(categoriaId));
-    return cat ? cat.nome : "Sem categoria";
+    const nomeCat = cat ? cat.nome : "Sem categoria";
+    return subcategoria ? `${nomeCat} • ${subcategoria}` : nomeCat;
+  }
+
+  function atualizarSugestoesSubcategoria(categoriaId) {
+    const datalist = document.getElementById("sugestoesSubcategoria");
+    if (!datalist) return;
+    datalist.textContent = "";
+
+    const cat = estado.categorias.find((c) => String(c.id) === String(categoriaId));
+    let opcoes = [];
+    if (cat && Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0) {
+      opcoes = cat.subcategorias;
+    } else if (cat) {
+      const padrao = CATEGORIAS_ORGANIZADAS_PADRAO.find((p) => p.slug === cat.slug);
+      if (padrao) opcoes = padrao.subcategorias;
+    }
+
+    if (opcoes.length === 0) {
+      opcoes = [
+        "Cozinha",
+        "Sala",
+        "Quarto",
+        "Banheiro",
+        "Lavanderia e Limpeza",
+        "Masculino",
+        "Feminino",
+        "Unissex",
+        "Infantil"
+      ];
+    }
+
+    opcoes.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item;
+      datalist.appendChild(opt);
+    });
   }
 
   function renderizarListaProdutos() {
@@ -569,7 +650,7 @@
 
     const cat = document.createElement("div");
     cat.className = "admin-produto-categoria";
-    cat.textContent = obterNomeCategoria(produto.categoria_id);
+    cat.textContent = obterNomeCategoria(produto.categoria_id, produto.subcategoria);
 
     cabecalho.appendChild(badges);
     cabecalho.appendChild(h3);
@@ -761,6 +842,9 @@
       document.getElementById("produtoIdInput").value = produto.id;
       document.getElementById("prodNome").value = produto.nome || "";
       document.getElementById("prodCategoria").value = produto.categoria_id || "";
+      atualizarSugestoesSubcategoria(produto.categoria_id || "");
+      const elSub = document.getElementById("prodSubcategoria");
+      if (elSub) elSub.value = produto.subcategoria || "";
       document.getElementById("prodEstoque").value = Number(produto.estoque) || 0;
       document.getElementById("prodDescricao").value = produto.descricao || "";
       document.getElementById("prodFotoUrl").value = produto.foto_url || "";
@@ -783,8 +867,11 @@
       if (titulo) titulo.textContent = "➕ Adicionar Novo Produto";
       document.getElementById("produtoIdInput").value = "";
       document.getElementById("prodNome").value = "";
-      document.getElementById("prodCategoria").value =
-        estado.categorias[0] ? String(estado.categorias[0].id) : "";
+      const catInicial = estado.categorias[0] ? String(estado.categorias[0].id) : "";
+      document.getElementById("prodCategoria").value = catInicial;
+      atualizarSugestoesSubcategoria(catInicial);
+      const elSub = document.getElementById("prodSubcategoria");
+      if (elSub) elSub.value = "";
       document.getElementById("prodEstoque").value = 1;
       document.getElementById("prodDescricao").value = "";
       document.getElementById("prodFotoUrl").value = "";
@@ -858,6 +945,10 @@
     const idExistente = document.getElementById("produtoIdInput").value;
     const nome = limparTexto(document.getElementById("prodNome").value, 160);
     const categoriaId = document.getElementById("prodCategoria").value || null;
+    const subcategoria = limparTexto(
+      document.getElementById("prodSubcategoria")?.value || "",
+      80
+    );
     const estoque = Math.max(0, parseInt(document.getElementById("prodEstoque").value, 10) || 0);
     const descricao = limparTexto(document.getElementById("prodDescricao").value, 1000);
 
@@ -900,6 +991,7 @@
         nome,
         descricao,
         categoria_id: categoriaId,
+        subcategoria,
         foto_url: fotoUrlFinal,
         preco_venda: Number(precoVenda.toFixed(2)),
         preco_medio_mercado: precoMedio !== null ? Number(precoMedio.toFixed(2)) : null,
@@ -1185,9 +1277,25 @@
       const linha = document.createElement("div");
       linha.className = "carrinho-item";
 
-      const span = document.createElement("span");
-      span.style.fontWeight = "700";
+      const divInfo = document.createElement("div");
+      divInfo.style.flex = "1";
+
+      const span = document.createElement("div");
+      span.style.fontWeight = "800";
       span.textContent = cat.nome;
+      divInfo.appendChild(span);
+
+      const subs = Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0
+        ? cat.subcategorias
+        : (CATEGORIAS_ORGANIZADAS_PADRAO.find((p) => p.slug === cat.slug)?.subcategorias || []);
+
+      if (subs.length > 0) {
+        const subTexto = document.createElement("div");
+        subTexto.style.fontSize = "0.78rem";
+        subTexto.style.color = "#57534e";
+        subTexto.textContent = "Subcategorias: " + subs.join(" • ");
+        divInfo.appendChild(subTexto);
+      }
 
       const btnDel = document.createElement("button");
       btnDel.type = "button";
@@ -1197,7 +1305,7 @@
       btnDel.textContent = "Excluir";
       btnDel.addEventListener("click", () => excluirCategoria(cat));
 
-      linha.appendChild(span);
+      linha.appendChild(divInfo);
       linha.appendChild(btnDel);
       container.appendChild(linha);
     });
@@ -1206,8 +1314,14 @@
   async function adicionarCategoriaSubmit(evento) {
     evento.preventDefault();
     const input = document.getElementById("inputNomeNovaCategoria");
+    const inputSubs = document.getElementById("inputSubcategoriasNova");
     const nome = limparTexto(input.value, 80);
     if (!nome) return;
+
+    const subcategorias = String(inputSubs?.value || "")
+      .split(",")
+      .map((s) => limparTexto(s, 50))
+      .filter(Boolean);
 
     const slug = gerarSlug(nome) || "cat-" + Date.now();
 
@@ -1217,22 +1331,64 @@
           id: "cat-" + Date.now(),
           nome,
           slug,
+          subcategorias,
           ordem: estado.categorias.length + 1
         });
       } else {
-        const { error } = await supabaseClient
-          .from("categorias")
-          .insert([{ nome, slug, ordem: estado.categorias.length + 1 }]);
+        const payload = { nome, slug, ordem: estado.categorias.length + 1 };
+        if (subcategorias.length > 0) payload.subcategorias = subcategorias;
+
+        let { error } = await supabaseClient.from("categorias").insert([payload]);
+        // Fallback caso a coluna subcategorias ainda não tenha sido adicionada no banco via SQL
+        if (error && String(error.message || "").includes("subcategorias")) {
+          const semSub = { nome, slug, ordem: estado.categorias.length + 1 };
+          const retry = await supabaseClient.from("categorias").insert([semSub]);
+          error = retry.error;
+        }
         if (error) throw error;
       }
 
       input.value = "";
+      if (inputSubs) inputSubs.value = "";
       await carregarDadosAdmin();
       renderizarListaCategoriasModal();
-      mostrarToast("Categoria criada!");
+      mostrarToast("Categoria criada com sucesso!");
     } catch (erro) {
       console.error("Erro ao criar categoria:", erro);
       mostrarToast("Não foi possível criar a categoria.");
+    }
+  }
+
+  async function aplicarCategoriasOrganizadasPadrao() {
+    try {
+      for (const item of CATEGORIAS_ORGANIZADAS_PADRAO) {
+        const existente = estado.categorias.find((c) => c.slug === item.slug);
+        if (!existente) {
+          let { error } = await supabaseClient.from("categorias").insert([
+            {
+              nome: item.nome,
+              slug: item.slug,
+              subcategorias: item.subcategorias,
+              ordem: item.ordem
+            }
+          ]);
+          if (error && String(error.message || "").includes("subcategorias")) {
+            await supabaseClient.from("categorias").insert([
+              {
+                nome: item.nome,
+                slug: item.slug,
+                ordem: item.ordem
+              }
+            ]);
+          }
+        }
+      }
+      await carregarDadosAdmin();
+      renderizarListaCategoriasModal();
+      mostrarToast("Categorias e subcategorias organizadas aplicadas!");
+    } catch (erro) {
+      console.error("Erro ao aplicar categorias padrão:", erro);
+      mostrarToast("Erro ao atualizar categorias.");
     }
   }
 
@@ -1413,6 +1569,11 @@
       inputVendaTotal.addEventListener("input", verificarAlertaPrecoMinimoVenda);
     }
 
+    // Atualiza sugestões de subcategoria quando trocar a categoria no modal do produto
+    document
+      .getElementById("prodCategoria")
+      ?.addEventListener("change", (e) => atualizarSugestoesSubcategoria(e.target.value));
+
     // Modal de Categorias
     document
       .getElementById("btnGerenciarCategorias")
@@ -1423,6 +1584,9 @@
     document
       .getElementById("formNovaCategoria")
       ?.addEventListener("submit", adicionarCategoriaSubmit);
+    document
+      .getElementById("btnRestaurarCategoriasPadrao")
+      ?.addEventListener("click", aplicarCategoriasOrganizadasPadrao);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {

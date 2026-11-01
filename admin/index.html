@@ -208,16 +208,29 @@
 
         <div class="form-grade-dupla">
           <div class="form-grupo">
-            <label for="prodCategoria" class="form-label">Categoria</label>
+            <label for="prodCategoria" class="form-label">Categoria Principal</label>
             <select id="prodCategoria" class="form-select">
               <option value="">Sem categoria</option>
             </select>
           </div>
 
           <div class="form-grupo">
-            <label for="prodEstoque" class="form-label">Quantidade em estoque *</label>
-            <input type="number" id="prodEstoque" class="form-input" required min="0" step="1" value="1" />
+            <label for="prodSubcategoria" class="form-label">Subcategoria (Cômodo, Masculino/Feminino, etc.)</label>
+            <input
+              type="text"
+              id="prodSubcategoria"
+              class="form-input"
+              list="sugestoesSubcategoria"
+              placeholder="Ex.: Cozinha, Quarto, Masculino, Feminino..."
+              maxlength="80"
+            />
+            <datalist id="sugestoesSubcategoria"></datalist>
           </div>
+        </div>
+
+        <div class="form-grupo">
+          <label for="prodEstoque" class="form-label">Quantidade em estoque *</label>
+          <input type="number" id="prodEstoque" class="form-input" required min="0" step="1" value="1" />
         </div>
 
         <div class="form-grupo">
@@ -384,17 +397,34 @@
       </div>
 
       <div class="modal-corpo">
-        <form id="formNovaCategoria" style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <div style="margin-bottom: 14px;">
+          <button
+            type="button"
+            id="btnRestaurarCategoriasPadrao"
+            class="btn-laranja-admin"
+            style="width: 100%; min-height: 42px; font-size: 0.85rem;"
+          >
+            ⚡ Aplicar Categorias Organizadas (Cômodos, Masculino/Feminino, etc.)
+          </button>
+        </div>
+
+        <form id="formNovaCategoria" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding: 12px; background: #f8f7f3; border-radius: 10px; border: 1px solid #e5e3dc;">
           <input
             type="text"
             id="inputNomeNovaCategoria"
             class="form-input"
-            placeholder="Nome da nova categoria..."
+            placeholder="Nome da categoria (ex.: Casa e Cômodos)"
             required
             maxlength="80"
           />
-          <button type="submit" class="btn-primario-admin" style="width: auto; white-space: nowrap;">
-            + Criar
+          <input
+            type="text"
+            id="inputSubcategoriasNova"
+            class="form-input"
+            placeholder="Subcategorias separadas por vírgula (ex.: Cozinha, Sala, Quarto, Banheiro)"
+          />
+          <button type="submit" class="btn-primario-admin">
+            + Criar Categoria com Subcategorias
           </button>
         </form>
 
