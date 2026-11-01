@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Administrativo | P&amp;G Preços Justos</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0f3d2e" />
+  <link rel="icon" type="image/png" href="../img/logo-quadrada.png" />
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-body">
+  <!-- ========================================================================
+       1. TELA DE LOGIN (ACESSO RESTRITO AOS SÓCIOS - SEM CADASTRO PÚBLICO)
+       ======================================================================== -->
+  <section id="telaLogin" class="tela-login-wrapper">
+    <div class="login-card">
+      <div class="login-cabecalho">
+        <img
+          src="../img/logo-quadrada.png"
+          alt="P&G Preços Justos"
+          style="height: 110px; width: auto; margin: 0 auto 10px; object-fit: contain;"
+        />
+        <h1 class="login-titulo">Painel de Estoque</h1>
+        <p class="login-subtitulo">
+          Acesso exclusivo da administração • P&amp;G Preços Justos
+        </p>
+      </div>
+
+      <div id="alertaLogin" class="alerta-erro" style="display: none;" role="alert"></div>
+
+      <form id="formLogin" autocomplete="on">
+        <div class="form-grupo">
+          <label for="inputEmailLogin" class="form-label">E-mail de acesso</label>
+          <input
+            type="email"
+            id="inputEmailLogin"
+            class="form-input"
+            placeholder="seuemail@exemplo.com"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="form-grupo">
+          <label for="inputSenhaLogin" class="form-label">Senha</label>
+          <input
+            type="password"
+            id="inputSenhaLogin"
+            class="form-input"
+            placeholder="••••••••"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button type="submit" id="btnEntrarLogin" class="btn-primario-admin">
+          🔒 Entrar no Painel
+        </button>
+      </form>
+
+      <div style="margin-top: 16px; text-align: center;">
+        <a href="../index.html" style="font-size: 0.84rem; color: #57534e; text-decoration: underline;">
+          ← Voltar para a vitrine pública
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       2. CONTEÚDO DO PAINEL ADMINISTRATIVO (EXIBIDO APÓS LOGIN)
+       ======================================================================== -->
+  <div id="painelAdminConteudo" style="display: none;">
+    <!-- Topo do Admin -->
+    <header class="admin-topo">
+      <div class="container admin-topo-interno">
+        <div class="marca">
+          <img
+            src="../img/logo-horizontal.png"
+            alt="P&G Preços Justos"
+            class="marca-logo-img"
+          />
+          <div class="marca-textos">
+            <span class="marca-nome">Gestão de Estoque</span>
+            <span id="infoUsuarioLogado" class="admin-usuario-info">Carregando...</span>
+          </div>
+        </div>
+
+        <div class="admin-topo-acoes">
+          <a href="../index.html" class="btn-sair-admin" target="_blank" rel="noopener">
+            👁️ Ver Loja
+          </a>
+          <button type="button" id="btnSairAdmin" class="btn-sair-admin">
+            🚪 Sair
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Resumo Simples: Vendas do mês, Estoque baixo, Pesquisa > 60 dias, Margem estimada -->
+      <section class="resumo-secao" aria-label="Resumo do mês e alertas">
+        <div class="resumo-grade">
+          <div class="resumo-card">
+            <span class="resumo-rotulo">💰 Vendas do Mês</span>
+            <strong id="resumoVendasMesValor" class="resumo-valor">R$ 0,00</strong>
+            <span id="resumoVendasMesQtd" class="resumo-detalhe">0 vendas registradas</span>
+          </div>
+
+          <div class="resumo-card">
+            <span class="resumo-rotulo">📈 Margem Estimada</span>
+            <strong id="resumoMargemMedia" class="resumo-valor">0%</strong>
+            <span id="resumoLucroMes" class="resumo-detalhe">Lucro no mês: R$ 0,00</span>
+          </div>
+
+          <div id="cardAlertaEstoqueBaixo" class="resumo-card clicavel" title="Clique para filtrar produtos com estoque baixo">
+            <span class="resumo-rotulo">⚠️ Estoque Baixo (&lt; 3)</span>
+            <strong id="resumoEstoqueBaixoQtd" class="resumo-valor">0</strong>
+            <span class="resumo-detalhe">Toque para filtrar</span>
+          </div>
+
+          <div id="cardAlertaPesquisaAntiga" class="resumo-card clicavel" title="Clique para filtrar produtos com pesquisa acima de 60 dias">
+            <span class="resumo-rotulo">🕒 Pesquisa &gt; 60 dias</span>
+            <strong id="resumoPesquisaAntigaQtd" class="resumo-valor">0</strong>
+            <span class="resumo-detalhe">Toque para atualizar</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Botões Principais de Cadastro -->
+      <div class="acoes-principais-admin">
+        <button type="button" id="btnNovoProduto" class="btn-laranja-admin">
+          ➕ Adicionar Novo Produto
+        </button>
+        <button type="button" id="btnGerenciarCategorias" class="btn-secundario-admin">
+          🏷️ Gerenciar Categorias
+        </button>
+      </div>
+
+      <!-- Busca e Filtros (Categoria, Estoque Baixo, Pesquisa > 60d, Ativo/Inativo) -->
+      <section class="painel-filtros-admin" aria-label="Filtros do estoque">
+        <div>
+          <input
+            type="search"
+            id="inputBuscaAdmin"
+            class="form-input"
+            placeholder="Buscar produto no estoque pelo nome..."
+            aria-label="Buscar produto pelo nome"
+          />
+        </div>
+
+        <div>
+          <select id="selectCategoriaAdmin" class="form-select" aria-label="Filtrar por categoria">
+            <option value="todas">Todas as categorias</option>
+          </select>
+        </div>
+
+        <div class="chips-filtro-rapido" style="grid-column: 1 / -1;">
+          <button type="button" class="chip-filtro ativo" data-filtro="todos">
+            Todos
+          </button>
+          <button type="button" class="chip-filtro" data-filtro="ativos">
+            ✅ Só Ativos
+          </button>
+          <button type="button" class="chip-filtro" data-filtro="inativos">
+            🚫 Só Inativos
+          </button>
+          <button type="button" class="chip-filtro" data-filtro="estoque_baixo">
+            ⚠️ Estoque Baixo (&lt; 3)
+          </button>
+          <button type="button" class="chip-filtro" data-filtro="pesquisa_vencida">
+            🕒 Pesquisa &gt; 60 dias
+          </button>
+        </div>
+      </section>
+
+      <!-- Contagem e Lista de Produtos -->
+      <div class="cabecalho-secao">
+        <h2 class="titulo-secao">📦 Produtos Cadastrados</h2>
+        <span id="contagemAdminProdutos" class="subtitulo-contagem">0 itens</span>
+      </div>
+
+      <div id="listaAdminProdutos" class="grade-admin-produtos"></div>
+    </main>
+  </div>
+
+  <!-- ========================================================================
+       3. MODAL: ADICIONAR / EDITAR PRODUTO
+       ======================================================================== -->
+  <div id="modalProduto" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" role="dialog" aria-labelledby="tituloModalProduto">
+      <div class="modal-topo">
+        <h2 id="tituloModalProduto">Adicionar Produto</h2>
+        <button type="button" id="btnFecharModalProduto" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <form id="formProduto" class="modal-corpo">
+        <input type="hidden" id="produtoIdInput" />
+        <div id="alertaFormProduto" class="alerta-erro" style="display: none;"></div>
+
+        <div class="form-grupo">
+          <label for="prodNome" class="form-label">Nome do produto *</label>
+          <input type="text" id="prodNome" class="form-input" required maxlength="160" placeholder="Ex.: Garrafa Térmica Inox 1L" />
+        </div>
+
+        <div class="form-grade-dupla">
+          <div class="form-grupo">
+            <label for="prodCategoria" class="form-label">Categoria</label>
+            <select id="prodCategoria" class="form-select">
+              <option value="">Sem categoria</option>
+            </select>
+          </div>
+
+          <div class="form-grupo">
+            <label for="prodEstoque" class="form-label">Quantidade em estoque *</label>
+            <input type="number" id="prodEstoque" class="form-input" required min="0" step="1" value="1" />
+          </div>
+        </div>
+
+        <div class="form-grupo">
+          <label for="prodDescricao" class="form-label">Descrição pública</label>
+          <textarea id="prodDescricao" class="form-textarea" placeholder="Detalhes principais, tamanho, voltagem..."></textarea>
+        </div>
+
+        <!-- Envio de Foto -->
+        <div class="form-grupo">
+          <label for="prodArquivoFoto" class="form-label">Foto do produto (enviar arquivo ou colar endereço)</label>
+          <input type="file" id="prodArquivoFoto" class="form-input" accept="image/jpeg,image/png,image/webp,image/gif" />
+          <small class="form-ajuda">Envie uma foto do celular ou computador (máx. 5 MB) ou cole um endereço abaixo:</small>
+          <div class="preview-foto-box">
+            <img id="previewFotoProduto" class="preview-foto-img" src="" alt="Prévia da foto" />
+            <input type="url" id="prodFotoUrl" class="form-input" placeholder="https://..." />
+          </div>
+        </div>
+
+        <!-- Preços Públicos e Pesquisa de Mercado -->
+        <div class="divisor-secao-form">📊 Preço de Venda e Pesquisa de Mercado (Públicos)</div>
+
+        <div class="form-grade-dupla">
+          <div class="form-grupo">
+            <label for="prodPrecoVenda" class="form-label">Preço de Venda (R$) *</label>
+            <input type="number" id="prodPrecoVenda" class="form-input" required min="0" step="0.01" placeholder="59.90" />
+          </div>
+
+          <div class="form-grupo">
+            <label for="prodPrecoMedio" class="form-label">Preço Médio no Mercado (R$)</label>
+            <input type="number" id="prodPrecoMedio" class="form-input" min="0" step="0.01" placeholder="79.90" />
+          </div>
+        </div>
+
+        <div class="form-grupo">
+          <label for="prodDataPesquisa" class="form-label">Data da Pesquisa de Preço</label>
+          <input type="date" id="prodDataPesquisa" class="form-input" />
+          <small class="form-ajuda">Se tiver mais de 60 dias, o site oculta automaticamente o preço médio.</small>
+        </div>
+
+        <!-- Dados Internos (SÓ ADMIN - Nunca aparecem na vitrine) -->
+        <div class="divisor-secao-form">🔒 Dados Internos (Visíveis apenas para você e seu sócio)</div>
+
+        <div class="form-grade-dupla">
+          <div class="form-grupo">
+            <label for="prodPrecoCusto" class="form-label form-label-restrito">Preço de Custo (R$) *</label>
+            <input type="number" id="prodPrecoCusto" class="form-input" required min="0" step="0.01" placeholder="35.00" />
+          </div>
+
+          <div class="form-grupo">
+            <label for="prodPrecoMinimo" class="form-label form-label-restrito">Preço Mínimo de Negociação (R$) *</label>
+            <input type="number" id="prodPrecoMinimo" class="form-input" required min="0" step="0.01" placeholder="52.00" />
+          </div>
+        </div>
+
+        <div class="form-grupo">
+          <label for="prodFontesPesquisa" class="form-label form-label-restrito">Fontes da Pesquisa (texto livre — exclusivo da administração)</label>
+          <textarea
+            id="prodFontesPesquisa"
+            class="form-textarea"
+            placeholder="Ex.: Mercado Livre R$ 78,00 / Amazon R$ 82,00 / Loja X R$ 79,90"
+          ></textarea>
+        </div>
+
+        <!-- Opções de Exibição -->
+        <div class="switches-linha">
+          <label class="checkbox-label">
+            <input type="checkbox" id="prodAtivo" checked />
+            <span>Produto Ativo (visível na vitrine)</span>
+          </label>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="prodDestaque" />
+            <span>⭐ Produto em Destaque</span>
+          </label>
+        </div>
+
+        <div class="modal-rodape" style="margin: 18px -18px -18px;">
+          <button type="button" id="btnExcluirProdutoModal" class="btn-secundario-admin" style="color: #991b1b; border-color: #fca5a5; margin-right: auto; display: none;">
+            🗑️ Excluir
+          </button>
+          <button type="button" id="btnCancelarProduto" class="btn-secundario-admin">
+            Cancelar
+          </button>
+          <button type="submit" id="btnSalvarProduto" class="btn-primario-admin" style="width: auto;">
+            💾 Salvar Produto
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       4. MODAL: REGISTRAR VENDA (COM ALERTA SE MENOR QUE PREÇO MÍNIMO)
+       ======================================================================== -->
+  <div id="modalVenda" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" role="dialog" aria-labelledby="tituloModalVenda">
+      <div class="modal-topo">
+        <h2 id="tituloModalVenda">💸 Registrar Venda</h2>
+        <button type="button" id="btnFecharModalVenda" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <form id="formVenda" class="modal-corpo">
+        <input type="hidden" id="vendaProdutoId" />
+
+        <div class="produto-bloco-preco" style="margin-bottom: 14px;">
+          <strong id="vendaNomeProduto" style="font-size: 1rem; display: block; margin-bottom: 4px;"></strong>
+          <div id="vendaInfoReferencia" style="font-size: 0.82rem; color: #57534e;"></div>
+        </div>
+
+        <div class="form-grade-dupla">
+          <div class="form-grupo">
+            <label for="vendaQuantidade" class="form-label">Quantidade vendida *</label>
+            <input type="number" id="vendaQuantidade" class="form-input" required min="1" step="1" value="1" />
+          </div>
+
+          <div class="form-grupo">
+            <label for="vendaValorTotal" class="form-label">Valor Total Recebido (R$) *</label>
+            <input type="number" id="vendaValorTotal" class="form-input" required min="0" step="0.01" />
+            <small id="vendaValorUnitarioCalc" class="form-ajuda"></small>
+          </div>
+        </div>
+
+        <div class="form-grupo">
+          <label for="vendaObservacao" class="form-label">Observação (opcional)</label>
+          <input type="text" id="vendaObservacao" class="form-input" placeholder="Ex.: Cliente João - Pago via Pix" />
+        </div>
+
+        <!-- Alerta de Preço Mínimo de Negociação -->
+        <div id="alertaPrecoMinimoVenda" class="alerta-aviso" style="display: none;" role="alert">
+          <strong>⚠️ Atenção: Valor abaixo do Preço Mínimo de Negociação!</strong>
+          <p id="textoDetalhePrecoMinimo" style="margin-top: 4px; font-weight: 500;"></p>
+          <label class="checkbox-label" style="margin-top: 8px;">
+            <input type="checkbox" id="checkConfirmarAbaixoMinimo" />
+            <span>Confirmo que autorizo registrar esta venda abaixo do preço mínimo.</span>
+          </label>
+        </div>
+
+        <div id="alertaErroVenda" class="alerta-erro" style="display: none;"></div>
+
+        <div class="modal-rodape" style="margin: 18px -18px -18px;">
+          <button type="button" id="btnCancelarVenda" class="btn-secundario-admin">
+            Cancelar
+          </button>
+          <button type="submit" id="btnConfirmarVenda" class="btn-laranja-admin">
+            ✅ Confirmar Venda e Baixar Estoque
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       5. MODAL: GERENCIAR CATEGORIAS
+       ======================================================================== -->
+  <div id="modalCategorias" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" role="dialog" aria-labelledby="tituloModalCategorias">
+      <div class="modal-topo">
+        <h2 id="tituloModalCategorias">🏷️ Categorias da Loja</h2>
+        <button type="button" id="btnFecharModalCategorias" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-corpo">
+        <form id="formNovaCategoria" style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input
+            type="text"
+            id="inputNomeNovaCategoria"
+            class="form-input"
+            placeholder="Nome da nova categoria..."
+            required
+            maxlength="80"
+          />
+          <button type="submit" class="btn-primario-admin" style="width: auto; white-space: nowrap;">
+            + Criar
+          </button>
+        </form>
+
+        <div id="listaCategoriasGerenciar" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastAdmin" class="toast-notificacao" role="status" aria-live="polite"></div>
+
+  <!-- Supabase via CDN + Config + Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
+

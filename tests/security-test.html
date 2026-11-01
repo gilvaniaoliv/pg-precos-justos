@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verificador de Segurança RLS | P&amp;G Preços Justos</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    .painel-teste {
+      max-width: 820px;
+      margin: 28px auto;
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid #e5e3dc;
+      padding: 24px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    }
+    .item-teste {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #e5e3dc;
+      font-size: 0.9rem;
+    }
+    .item-teste.ok {
+      background: #e6f4ee;
+      border-color: #0f3d2e;
+      color: #0f3d2e;
+    }
+    .item-teste.falha {
+      background: #fee2e2;
+      border-color: #991b1b;
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="painel-teste">
+      <h1 style="color: #0f3d2e; margin-bottom: 8px;">🛡️ Painel de Auditoria de Segurança (Visitante Anônimo)</h1>
+      <p style="color: #57534e; font-size: 0.92rem; margin-bottom: 18px;">
+        Esta página simula um <strong>visitante não logado</strong> usando apenas a chave pública (<code>anon</code>) e testa se ele consegue ler os produtos públicos e se é <strong>bloqueado</strong> ao tentar ver custos, preços mínimos, fontes, vendas ou alterar o banco.
+      </p>
+
+      <button type="button" id="btnExecutarTestes" class="btn-pedir-whatsapp" style="max-width: 320px; margin-bottom: 20px;">
+        ▶️ Executar Auditoria Agora
+      </button>
+
+      <div id="listaResultadosTeste"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="../app.js"></script>
+  <script>
+    (function () {
+      const btn = document.getElementById("btnExecutarTestes");
+      const container = document.getElementById("listaResultadosTeste");
+      const CFG = window.LOJA_CONFIG || {};
+
+      function adicionarResultado(passou, titulo, detalhe) {
+        const div = document.createElement("div");
+        div.className = "item-teste " + (passou ? "ok" : "falha");
+        const st = document.createElement("strong");
+        st.textContent = (passou ? "✅ PASSOU: " : "❌ FALHOU: ") + titulo;
+        const p = document.createElement("div");
+        p.style.marginTop = "4px";
+        p.textContent = detalhe;
+        div.appendChild(st);
+        div.appendChild(p);
+        container.appendChild(div);
+      }
+
+      btn.addEventListener("click", async () => {
+        container.textContent = "";
+
+        // 1. Testes de regras da vitrine (independentes do banco)
+        const U = window.PGVitrineUtils;
+        const dataRef = new Date(2026, 10, 1, 12, 0, 0);
+
+        const r1 = U.avaliarComparacaoPreco(
+          { preco_venda: 75, preco_medio_mercado: 100, data_pesquisa: "2026-10-20" },
+          dataRef
+        );
+        adicionarResultado(
+          r1.exibirPrecoMedio && r1.exibirEconomia && r1.textoEconomia.includes("25,00"),
+          "Regra de economia >= 5%",
+          `Exibiu "${r1.textoPrecoMedio}" e "${r1.textoEconomia}".`
+        );
+
+        const r2 = U.avaliarComparacaoPreco(
+          { preco_venda: 97, preco_medio_mercado: 100, data_pesquisa: "2026-10-20" },
+          dataRef
+        );
+        adicionarResultado(
+          r2.exibirPrecoMedio && !r2.exibirEconomia,
+          "Regra de diferença < 5% (sem porcentagem/selo)",
+          "Exibiu apenas preço de venda e preço médio, sem selo de economia."
+        );
+
+        const r3 = U.avaliarComparacaoPreco(
+          { preco_venda: 60, preco_medio_mercado: 100, data_pesquisa: "2026-08-01" },
+          dataRef
+        );
+        adicionarResultado(
+          !r3.exibirPrecoMedio,
+          "Regra de pesquisa com mais de 60 dias",
+          "Ocultou automaticamente o preço médio vencido."
+        );
+
+        // 2. Testes ao vivo no Supabase (se configurado no config.js)
+        const configurado =
+          CFG.SUPABASE_URL &&
+          CFG.SUPABASE_ANON_KEY &&
+          !CFG.SUPABASE_URL.includes("SEU-PROJETO");
+
+        if (!configurado) {
+          adicionarResultado(
+            true,
+            "Testes locais concluídos (Aguardando conexão do config.js para teste online)",
+            "Assim que você colar sua SUPABASE_URL e SUPABASE_ANON_KEY no config.js, clique aqui novamente para testar as travas RLS direto no servidor."
+          );
+          return;
+        }
+
+        const anonClient = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+        await anonClient.auth.signOut();
+
+        // Teste A: Visitante lê produtos_publicos
+        const { data: pubData, error: pubErr } = await anonClient
+          .from("produtos_publicos")
+          .select("*");
+        const temCamposSecretos =
+          Array.isArray(pubData) &&
+          pubData.some(
+            (item) =>
+              "preco_custo" in item ||
+              "preco_minimo_negociacao" in item ||
+              "fontes_pesquisa" in item
+          );
+        adicionarResultado(
+          !pubErr && !temCamposSecretos,
+          "Visitante anônimo CONSEGUE ler produtos_publicos (sem campos secretos)",
+          pubErr
+            ? pubErr.message
+            : `Leitura pública funcionando (${pubData.length} produtos ativos retornados, zero campos internos).`
+        );
+
+        // Teste B: Visitante tenta ler tabela bruta 'produtos' (deve falhar!)
+        const { error: prodBrutoErr } = await anonClient
+          .from("produtos")
+          .select("preco_custo, preco_minimo_negociacao, fontes_pesquisa");
+        adicionarResultado(
+          Boolean(prodBrutoErr),
+          "Visitante anônimo é BLOQUEADO ao tentar ver custos, preços mínimos e fontes",
+          prodBrutoErr
+            ? `Bloqueado com sucesso pelo banco: ${prodBrutoErr.message}`
+            : "PERIGO: A tabela produtos permitiu leitura anônima!"
+        );
+
+        // Teste C: Visitante tenta ler 'vendas' (deve falhar!)
+        const { error: vendasErr } = await anonClient.from("vendas").select("*");
+        adicionarResultado(
+          Boolean(vendasErr),
+          "Visitante anônimo é BLOQUEADO ao tentar ver o histórico de vendas",
+          vendasErr
+            ? `Bloqueado com sucesso pelo banco: ${vendasErr.message}`
+            : "PERIGO: A tabela vendas permitiu leitura anônima!"
+        );
+
+        // Teste D: Visitante tenta inserir produto (deve falhar!)
+        const { error: insertErr } = await anonClient
+          .from("produtos")
+          .insert([{ nome: "Invasao Teste", preco_venda: 1 }]);
+        adicionarResultado(
+          Boolean(insertErr),
+          "Visitante anônimo é BLOQUEADO ao tentar inserir/editar/apagar produtos",
+          insertErr
+            ? `Escrita bloqueada com sucesso: ${insertErr.message}`
+            : "PERIGO: Visitante conseguiu inserir produto!"
+        );
+      });
+    })();
+  </script>
+</body>
+</html>
+

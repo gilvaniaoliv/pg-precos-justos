@@ -1,0 +1,685 @@
+/**
+ * ============================================================================
+ * ESTILOS DO PAINEL ADMINISTRATIVO (/admin) - P&G PREÇOS JUSTOS (MOBILE-FIRST)
+ * ============================================================================
+ * Reaproveita as variáveis de cores do ../style.css para manter a identidade
+ * visual (Verde escuro, Laranja, Amarelo, Off-white e Cinza bem escuro).
+ */
+
+.admin-body {
+  background-color: var(--cor-fundo-pagina);
+  color: var(--cor-texto-principal);
+  padding-bottom: 40px;
+}
+
+/* ==========================================================================
+   TELA DE LOGIN
+   ========================================================================== */
+.tela-login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: linear-gradient(150deg, var(--cor-verde-escuro) 0%, #09261c 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 410px;
+  background-color: var(--cor-branco);
+  border-radius: var(--raio-borda);
+  padding: 26px 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  border-top: 6px solid var(--cor-amarelo);
+}
+
+.login-cabecalho {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.login-cabecalho .marca-selo {
+  margin: 0 auto 10px;
+  width: 50px;
+  height: 50px;
+  font-size: 1.15rem;
+}
+
+.login-titulo {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--cor-verde-escuro);
+}
+
+.login-subtitulo {
+  font-size: 0.85rem;
+  color: var(--cor-texto-secundario);
+  margin-top: 4px;
+}
+
+.form-grupo {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--cor-texto-principal);
+  margin-bottom: 5px;
+}
+
+.form-label-restrito {
+  color: var(--cor-laranja-hover);
+}
+
+.form-ajuda {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--cor-texto-secundario);
+  margin-top: 3px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--cor-borda);
+  background-color: var(--cor-branco);
+  color: var(--cor-texto-principal);
+  font-size: 0.95rem;
+}
+
+.form-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--cor-verde-escuro);
+}
+
+.btn-primario-admin {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: var(--raio-botao);
+  background-color: var(--cor-verde-escuro);
+  color: var(--cor-branco);
+  font-weight: 800;
+  font-size: 0.96rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  transition: background-color 0.2s;
+}
+
+.btn-primario-admin:hover:not(:disabled) {
+  background-color: var(--cor-verde-medio);
+}
+
+.btn-laranja-admin {
+  background-color: var(--cor-laranja);
+  color: var(--cor-branco);
+  border: none;
+  border-radius: var(--raio-botao);
+  min-height: 46px;
+  padding: 0 16px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-laranja-admin:hover:not(:disabled) {
+  background-color: var(--cor-laranja-hover);
+}
+
+.btn-secundario-admin {
+  background-color: var(--cor-branco);
+  color: var(--cor-texto-principal);
+  border: 1.5px solid var(--cor-borda);
+  border-radius: var(--raio-botao);
+  min-height: 44px;
+  padding: 0 14px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.alerta-erro,
+.alerta-aviso,
+.alerta-sucesso {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.alerta-erro {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.alerta-aviso {
+  background-color: var(--cor-laranja-claro);
+  color: #9a3412;
+  border: 2px solid var(--cor-laranja);
+}
+
+.alerta-sucesso {
+  background-color: var(--cor-verde-claro);
+  color: var(--cor-verde-escuro);
+  border: 1px solid rgba(15, 61, 46, 0.3);
+}
+
+/* ==========================================================================
+   TOPO DO PAINEL ADMIN
+   ========================================================================== */
+.admin-topo {
+  background-color: var(--cor-verde-escuro);
+  color: var(--cor-branco);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.admin-topo-interno {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-usuario-info {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.admin-topo-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-sair-admin {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--cor-branco);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   RESUMO (DASHBOARD DE 4 INDICADORES)
+   ========================================================================== */
+.resumo-secao {
+  padding: 18px 0 10px;
+}
+
+.resumo-grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.resumo-card {
+  background-color: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: 14px;
+  box-shadow: var(--sombra-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.resumo-card.clicavel {
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.resumo-card.clicavel:hover {
+  border-color: var(--cor-laranja);
+  transform: translateY(-1px);
+}
+
+.resumo-rotulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.resumo-valor {
+  font-size: 1.32rem;
+  font-weight: 900;
+  color: var(--cor-verde-escuro);
+  margin: 4px 0;
+}
+
+.resumo-valor.alerta {
+  color: var(--cor-laranja);
+}
+
+.resumo-detalhe {
+  font-size: 0.76rem;
+  color: var(--cor-texto-secundario);
+}
+
+/* ==========================================================================
+   BARRA DE AÇÕES E FILTROS DO ESTOQUE
+   ========================================================================== */
+.acoes-principais-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.acoes-principais-admin > button {
+  flex: 1 1 200px;
+}
+
+.painel-filtros-admin {
+  background-color: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: 14px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.chips-filtro-rapido {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-filtro {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--cor-borda);
+  background-color: var(--cor-fundo-pagina);
+  color: var(--cor-texto-principal);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip-filtro.ativo {
+  background-color: var(--cor-verde-escuro);
+  color: var(--cor-branco);
+  border-color: var(--cor-verde-escuro);
+}
+
+/* ==========================================================================
+   LISTA DE PRODUTOS NO ADMIN
+   ========================================================================== */
+.grade-admin-produtos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.admin-produto-card {
+  background-color: var(--cor-branco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: 14px;
+  box-shadow: var(--sombra-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-produto-card.inativo {
+  border-left: 5px solid var(--cor-esgotado);
+  background-color: #f4f4f0;
+}
+
+.admin-produto-topo {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.admin-produto-foto {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  object-fit: cover;
+  background-color: #eae9e2;
+  flex-shrink: 0;
+}
+
+.admin-produto-cabecalho {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-produto-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.badge-admin {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.badge-ativo {
+  background-color: var(--cor-verde-claro);
+  color: var(--cor-verde-escuro);
+}
+
+.badge-inativo {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.badge-alerta {
+  background-color: var(--cor-laranja-claro);
+  color: #9a3412;
+}
+
+.badge-amarelo {
+  background-color: var(--cor-amarelo-claro);
+  color: #854d0e;
+}
+
+.admin-produto-nome {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+
+.admin-produto-categoria {
+  font-size: 0.78rem;
+  color: var(--cor-texto-secundario);
+  font-weight: 600;
+}
+
+/* Grade de métricas internas do produto (Custo, Mínimo, Venda, Margem) */
+.admin-metricas-internas {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background-color: var(--cor-fundo-pagina);
+  border: 1px solid var(--cor-borda);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.8rem;
+}
+
+.metrica-item span {
+  display: block;
+  color: var(--cor-texto-secundario);
+  font-size: 0.72rem;
+}
+
+.metrica-item strong {
+  font-size: 0.9rem;
+  color: var(--cor-texto-principal);
+}
+
+/* Linha de Ajuste Rápido de Estoque (+ e -) */
+.admin-estoque-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #eef5f2;
+  border: 1px solid rgba(15, 61, 46, 0.2);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.estoque-rotulo-atual {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--cor-verde-escuro);
+}
+
+.estoque-botoes-rapidos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-estoque-rapido {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1.5px solid var(--cor-verde-escuro);
+  background-color: var(--cor-branco);
+  color: var(--cor-verde-escuro);
+  font-weight: 900;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-estoque-rapido:hover:not(:disabled) {
+  background-color: var(--cor-verde-escuro);
+  color: var(--cor-branco);
+}
+
+.btn-estoque-rapido:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Botões de Ação do Card Admin */
+.admin-card-acoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-registrar-venda {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--cor-laranja);
+  color: var(--cor-branco);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-registrar-venda:disabled {
+  background-color: var(--cor-esgotado);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   MODAIS (CRIAR/EDITAR PRODUTO, REGISTRAR VENDA, CATEGORIAS)
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 300;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.modal-overlay.aberto {
+  display: flex;
+}
+
+.modal-caixa {
+  width: 100%;
+  max-width: 620px;
+  max-height: 92vh;
+  background-color: var(--cor-branco);
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-topo {
+  background-color: var(--cor-verde-escuro);
+  color: var(--cor-branco);
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-topo h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.modal-corpo {
+  padding: 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-rodape {
+  padding: 14px 18px;
+  border-top: 1px solid var(--cor-borda);
+  background-color: var(--cor-fundo-pagina);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-grade-dupla {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.divisor-secao-form {
+  margin: 16px 0 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--cor-borda);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--cor-laranja-hover);
+  letter-spacing: 0.4px;
+}
+
+.switches-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 8px;
+  padding: 12px;
+  background-color: var(--cor-fundo-pagina);
+  border-radius: 10px;
+  border: 1px solid var(--cor-borda);
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--cor-verde-escuro);
+}
+
+.preview-foto-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.preview-foto-img {
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--cor-borda);
+  background-color: #f0efe9;
+}
+
+@media (min-width: 680px) {
+  .resumo-grade {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .painel-filtros-admin {
+    grid-template-columns: 2fr 1fr;
+    align-items: center;
+  }
+
+  .grade-admin-produtos {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-grade-dupla {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .modal-caixa {
+    border-radius: var(--raio-borda);
+  }
+}
+
+@media (min-width: 1040px) {
+  .grade-admin-produtos {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
