@@ -406,7 +406,7 @@
     if (elAno) elAno.textContent = String(new Date().getFullYear());
 
     const msgGeral = encodeURIComponent(
-      `Olá! Vim pelo catálogo da *${nomeLoja}* e gostaria de tirar uma dúvida.`
+      `Olá! Vim pelo catálogo da *${nomeLoja}* e gostaria de realizar uma compra.`
     );
     const urlWaGeral = `https://wa.me/${numeroLimpo}?text=${msgGeral}`;
 
