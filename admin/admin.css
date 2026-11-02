@@ -691,3 +691,36 @@
   }
 }
 
+
+/* Botão "olhinho" para mostrar/ocultar senha */
+.senha-envoltorio {
+  position: relative;
+  width: 100%;
+}
+
+.senha-envoltorio input {
+  padding-right: 46px;
+}
+
+.btn-mostrar-senha {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #57534e;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.btn-mostrar-senha:hover,
+.btn-mostrar-senha:focus-visible {
+  color: var(--cor-verde-escuro);
+  background-color: rgba(0, 0, 0, 0.05);
+}
