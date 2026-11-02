@@ -313,7 +313,7 @@ a {
   font-size: 0.9rem;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 16px;
+  margin-bottom: 0;
   max-width: 640px;
 }
 
