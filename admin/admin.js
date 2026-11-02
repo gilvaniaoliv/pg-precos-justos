@@ -428,7 +428,7 @@
       const totalVenda = Number(v.valor_total) || 0;
       const custoTotal = (Number(v.custo_unitario_snapshot) || 0) * (Number(v.quantidade) || 1);
       receitaMes += totalVenda;
-      custoVendasMes += custoTotal;
+      custoVendasMes += custoTotal + obterTaxaVenda(v) + obterFreteVenda(v);
     });
 
     const lucroMes = receitaMes - custoVendasMes;
@@ -890,8 +890,6 @@
       document.getElementById("prodPrecoVenda").value = produto.preco_venda ?? "";
       document.getElementById("prodPrecoMedio").value =
         produto.preco_medio_mercado ?? "";
-      document.getElementById("prodDataPesquisa").value =
-        produto.data_pesquisa ? String(produto.data_pesquisa).split("T")[0] : "";
       document.getElementById("prodPrecoCusto").value = produto.preco_custo ?? 0;
       document.getElementById("prodPrecoMinimo").value =
         produto.preco_minimo_negociacao ?? 0;
@@ -915,7 +913,6 @@
       document.getElementById("previewFotoProduto").src = obterFotoPlaceholder();
       document.getElementById("prodPrecoVenda").value = "";
       document.getElementById("prodPrecoMedio").value = "";
-      document.getElementById("prodDataPesquisa").value = hojeISO();
       document.getElementById("prodPrecoCusto").value = "";
       document.getElementById("prodPrecoMinimo").value = "";
       document.getElementById("prodFontesPesquisa").value = "";
@@ -992,7 +989,18 @@
     const precoVenda = parseFloat(document.getElementById("prodPrecoVenda").value);
     const precoMedioRaw = document.getElementById("prodPrecoMedio").value;
     const precoMedio = precoMedioRaw !== "" ? parseFloat(precoMedioRaw) : null;
-    const dataPesquisa = document.getElementById("prodDataPesquisa").value || null;
+    // A data da pesquisa não é mais digitada: é registrada automaticamente
+    // como hoje sempre que o preço médio for informado ou alterado.
+    const produtoAnterior = idExistente
+      ? estado.produtos.find((p) => String(p.id) === String(idExistente))
+      : null;
+    let dataPesquisa = produtoAnterior?.data_pesquisa || null;
+    if (
+      precoMedio !== null &&
+      (!dataPesquisa || Number(produtoAnterior?.preco_medio_mercado) !== precoMedio)
+    ) {
+      dataPesquisa = hojeISO();
+    }
 
     const precoCusto = parseFloat(document.getElementById("prodPrecoCusto").value);
     const precoMinimo = parseFloat(document.getElementById("prodPrecoMinimo").value);
@@ -1143,6 +1151,8 @@
       inputTotal.value = Number(produto.preco_venda).toFixed(2);
     }
     if (inputObs) inputObs.value = "";
+    document.getElementById("vendaTaxa").value = "";
+    document.getElementById("vendaFrete").value = "";
     if (checkMin) checkMin.checked = false;
     if (alertaErro) alertaErro.style.display = "none";
 
@@ -1210,6 +1220,14 @@
     const qtd = parseInt(document.getElementById("vendaQuantidade").value, 10) || 0;
     const valorTotal = parseFloat(document.getElementById("vendaValorTotal").value);
     const observacao = limparTexto(document.getElementById("vendaObservacao").value, 300);
+    const taxa = lerValorMonetario(document.getElementById("vendaTaxa").value);
+    const frete = lerValorMonetario(document.getElementById("vendaFrete").value);
+
+    if (taxa === null || frete === null) {
+      alertaErro.textContent = "Taxa e frete não podem ser negativos.";
+      alertaErro.style.display = "block";
+      return;
+    }
 
     if (qtd <= 0 || qtd > Number(prod.estoque)) {
       alertaErro.textContent = `Quantidade inválida. Disponível em estoque: ${prod.estoque} ${
@@ -1235,6 +1253,7 @@
       return;
     }
 
+    let avisoTaxaFrete = false;
     try {
       if (btnConfirmar) {
         btnConfirmar.disabled = true;
@@ -1253,13 +1272,15 @@
           custo_unitario_snapshot: Number(prod.preco_custo) || 0,
           abaixo_preco_minimo: abaixoDoMinimo,
           observacao,
+          taxa,
+          frete,
           data_venda: new Date().toISOString()
         };
         estado.vendasMes.unshift(novaVendaDemo);
         estado.todasVendas.unshift(novaVendaDemo);
       } else {
         // Chama a função transacional segura criada no setup.sql
-        const { error } = await supabaseClient.rpc("registrar_venda_admin", {
+        const { data, error } = await supabaseClient.rpc("registrar_venda_admin", {
           p_produto_id: prod.id,
           p_quantidade: qtd,
           p_valor_total: Number(valorTotal.toFixed(2)),
@@ -1267,11 +1288,27 @@
         });
 
         if (error) throw error;
+
+        // Taxa e frete são gravados na venda recém-criada
+        if ((taxa > 0 || frete > 0) && data && data.venda_id) {
+          const { error: erroTaxa } = await supabaseClient
+            .from("vendas")
+            .update({ taxa, frete })
+            .eq("id", data.venda_id);
+          if (erroTaxa) {
+            console.error("Erro ao salvar taxa/frete:", erroTaxa);
+            avisoTaxaFrete = true;
+          }
+        }
       }
 
       fecharModalVenda();
       await carregarDadosAdmin();
-      mostrarToast("Venda registrada e estoque atualizado!");
+      mostrarToast(
+        avisoTaxaFrete
+          ? "Venda registrada, mas a taxa/frete não foi salva. Ajuste no Relatório Mensal."
+          : "Venda registrada e estoque atualizado!"
+      );
     } catch (erro) {
       console.error("Erro ao registrar venda:", erro);
       if (alertaErro) {
@@ -1510,6 +1547,43 @@
     return num.toFixed(2).replace(".", ",");
   }
 
+  // Lê um campo de valor opcional: vazio = 0, negativo/inválido = null
+  function lerValorMonetario(texto) {
+    if (texto === "" || texto === null || texto === undefined) return 0;
+    const num = parseFloat(texto);
+    if (isNaN(num) || num < 0) return null;
+    return Number(num.toFixed(2));
+  }
+
+  function obterTaxaVenda(v) {
+    return Number(v.taxa) || 0;
+  }
+
+  function obterFreteVenda(v) {
+    return Number(v.frete) || 0;
+  }
+
+  function calcularLucroVenda(v) {
+    return (
+      (Number(v.valor_total) || 0) -
+      (Number(v.custo_unitario_snapshot) || 0) * (Number(v.quantidade) || 1) -
+      obterTaxaVenda(v) -
+      obterFreteVenda(v)
+    );
+  }
+
+  async function salvarTaxaFreteVenda(venda, taxa, frete) {
+    if (!estado.modoDemo) {
+      const { error } = await supabaseClient
+        .from("vendas")
+        .update({ taxa, frete })
+        .eq("id", venda.id);
+      if (error) throw error;
+    }
+    venda.taxa = taxa;
+    venda.frete = frete;
+  }
+
   function obterVendasFiltradasPorMes(chaveMes) {
     const listaBase =
       Array.isArray(estado.todasVendas) && estado.todasVendas.length > 0
@@ -1570,6 +1644,8 @@
     let qtdUnidadesVendidas = 0;
     let receitaTotalSaidas = 0;
     let custoTotalSaidas = 0;
+    let totalTaxas = 0;
+    let totalFretes = 0;
 
     vendasPeriodo.forEach((v) => {
       const qtd = Number(v.quantidade) || 1;
@@ -1578,9 +1654,11 @@
       qtdUnidadesVendidas += qtd;
       receitaTotalSaidas += total;
       custoTotalSaidas += qtd * custoUnit;
+      totalTaxas += obterTaxaVenda(v);
+      totalFretes += obterFreteVenda(v);
     });
 
-    const lucroLiquido = receitaTotalSaidas - custoTotalSaidas;
+    const lucroLiquido = receitaTotalSaidas - custoTotalSaidas - totalTaxas - totalFretes;
 
     const elEntradaValor = document.getElementById("relEntradaValor");
     const elEntradaQtd = document.getElementById("relEntradaQtd");
@@ -1602,6 +1680,10 @@
       } (${qtdUnidadesVendidas} un. vendidas)`;
     }
     if (elCustoVendas) elCustoVendas.textContent = formatarMoeda(custoTotalSaidas);
+    const elTaxas = document.getElementById("relTaxasValor");
+    const elFretes = document.getElementById("relFretesValor");
+    if (elTaxas) elTaxas.textContent = formatarMoeda(totalTaxas);
+    if (elFretes) elFretes.textContent = formatarMoeda(totalFretes);
     if (elLucro) elLucro.textContent = formatarMoeda(lucroLiquido);
 
     // Renderiza lista de saídas do período
@@ -1631,15 +1713,64 @@
       const sub = document.createElement("div");
       sub.style.fontSize = "0.78rem";
       sub.style.color = "#57534e";
-      const lucroVenda =
-        (Number(v.valor_total) || 0) -
-        (Number(v.custo_unitario_snapshot) || 0) * (Number(v.quantidade) || 1);
-      sub.textContent = `${formatarDataHoraBR(v.data_venda)} • Lucro: ${formatarMoeda(lucroVenda)}${
-        v.observacao ? ` • Obs.: ${v.observacao}` : ""
-      }`;
+      sub.textContent = `${formatarDataHoraBR(v.data_venda)} • Lucro: ${formatarMoeda(
+        calcularLucroVenda(v)
+      )}${v.observacao ? ` • Obs.: ${v.observacao}` : ""}`;
+
+      // Campos de taxa e frete editáveis direto no relatório
+      const linhaTaxaFrete = document.createElement("div");
+      linhaTaxaFrete.style.cssText =
+        "display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.78rem;";
+
+      const criarCampo = (rotulo, valor) => {
+        const label = document.createElement("label");
+        label.style.cssText = "display: flex; align-items: center; gap: 4px;";
+        label.textContent = rotulo;
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.step = "0.01";
+        input.placeholder = "0,00";
+        input.className = "form-input";
+        input.style.cssText = "width: 84px; min-height: 30px; padding: 2px 6px; font-size: 0.8rem;";
+        input.value = valor > 0 ? valor.toFixed(2) : "";
+        label.appendChild(input);
+        linhaTaxaFrete.appendChild(label);
+        return input;
+      };
+
+      const inputTaxa = criarCampo("💳 Taxa R$", obterTaxaVenda(v));
+      const inputFrete = criarCampo("🚚 Frete R$", obterFreteVenda(v));
+
+      const btnSalvar = document.createElement("button");
+      btnSalvar.type = "button";
+      btnSalvar.className = "btn-secundario-admin";
+      btnSalvar.style.cssText = "min-height: 30px; padding: 0 10px; font-size: 0.78rem;";
+      btnSalvar.textContent = "💾";
+      btnSalvar.title = "Salvar taxa e frete desta venda";
+      btnSalvar.addEventListener("click", async () => {
+        const taxa = lerValorMonetario(inputTaxa.value);
+        const frete = lerValorMonetario(inputFrete.value);
+        if (taxa === null || frete === null) {
+          mostrarToast("Taxa e frete não podem ser negativos.");
+          return;
+        }
+        try {
+          btnSalvar.disabled = true;
+          await salvarTaxaFreteVenda(v, taxa, frete);
+          atualizarPainelRelatorioMensal();
+          mostrarToast("Taxa e frete salvos!");
+        } catch (erro) {
+          console.error("Erro ao salvar taxa/frete:", erro);
+          mostrarToast("Erro ao salvar taxa/frete. Verifique se o SQL de atualização foi executado no Supabase.");
+          btnSalvar.disabled = false;
+        }
+      });
+      linhaTaxaFrete.appendChild(btnSalvar);
 
       info.appendChild(titulo);
       info.appendChild(sub);
+      info.appendChild(linhaTaxaFrete);
 
       const valorDir = document.createElement("strong");
       valorDir.style.color = "#0f3d2e";
@@ -1704,15 +1835,19 @@
     let qtdVendidaMes = 0;
     let receitaBrutaMes = 0;
     let custoMercadoriasVendidasMes = 0;
+    let taxasMes = 0;
+    let fretesMes = 0;
 
     vendasPeriodo.forEach((v) => {
       const qtd = Number(v.quantidade) || 1;
       qtdVendidaMes += qtd;
       receitaBrutaMes += Number(v.valor_total) || 0;
       custoMercadoriasVendidasMes += (Number(v.custo_unitario_snapshot) || 0) * qtd;
+      taxasMes += obterTaxaVenda(v);
+      fretesMes += obterFreteVenda(v);
     });
 
-    const lucroLiquidoMes = receitaBrutaMes - custoMercadoriasVendidasMes;
+    const lucroLiquidoMes = receitaBrutaMes - custoMercadoriasVendidasMes - taxasMes - fretesMes;
 
     const linhas = [];
 
@@ -1755,7 +1890,19 @@
     ].join(";"));
 
     linhas.push([
-      escaparCelulaCSV("LUCRO LÍQUIDO DO PERÍODO (Receita - Custo das Saídas)"),
+      escaparCelulaCSV("TAXAS NO PERÍODO (Maquininha, Pix, etc.)"),
+      escaparCelulaCSV("-"),
+      escaparCelulaCSV(formatarNumeroExcelBR(taxasMes))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("FRETES NO PERÍODO (Entregas)"),
+      escaparCelulaCSV("-"),
+      escaparCelulaCSV(formatarNumeroExcelBR(fretesMes))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("LUCRO LÍQUIDO DO PERÍODO (Receita - Custo - Taxas - Fretes)"),
       escaparCelulaCSV("-"),
       escaparCelulaCSV(formatarNumeroExcelBR(lucroLiquidoMes))
     ].join(";"));
@@ -1773,6 +1920,8 @@
       escaparCelulaCSV("Custo Unitário (R$)"),
       escaparCelulaCSV("Valor Total Recebido (R$)"),
       escaparCelulaCSV("Custo Total da Venda (R$)"),
+      escaparCelulaCSV("Taxa (R$)"),
+      escaparCelulaCSV("Frete (R$)"),
       escaparCelulaCSV("Lucro Líquido da Venda (R$)"),
       escaparCelulaCSV("Abaixo do Preço Mínimo?"),
       escaparCelulaCSV("Observação")
@@ -1783,7 +1932,7 @@
       const totalVenda = Number(v.valor_total) || 0;
       const custoUnit = Number(v.custo_unitario_snapshot) || 0;
       const custoTotal = custoUnit * qtd;
-      const lucro = totalVenda - custoTotal;
+      const lucro = calcularLucroVenda(v);
 
       linhas.push([
         escaparCelulaCSV(formatarDataHoraBR(v.data_venda)),
@@ -1793,6 +1942,8 @@
         escaparCelulaCSV(formatarNumeroExcelBR(custoUnit)),
         escaparCelulaCSV(formatarNumeroExcelBR(totalVenda)),
         escaparCelulaCSV(formatarNumeroExcelBR(custoTotal)),
+        escaparCelulaCSV(formatarNumeroExcelBR(obterTaxaVenda(v))),
+        escaparCelulaCSV(formatarNumeroExcelBR(obterFreteVenda(v))),
         escaparCelulaCSV(formatarNumeroExcelBR(lucro)),
         escaparCelulaCSV(v.abaixo_preco_minimo ? "Sim" : "Não"),
         escaparCelulaCSV(v.observacao || "")

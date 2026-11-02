@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS public.vendas (
     registrado_por UUID DEFAULT auth.uid()
 );
 
+-- Taxa (maquininha/Pix) e frete de cada venda, descontados do lucro no relatório
+ALTER TABLE public.vendas ADD COLUMN IF NOT EXISTS taxa NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (taxa >= 0);
+ALTER TABLE public.vendas ADD COLUMN IF NOT EXISTS frete NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (frete >= 0);
+
 CREATE INDEX IF NOT EXISTS idx_vendas_data_venda ON public.vendas(data_venda DESC);
 
 -- ============================================================================
