@@ -137,10 +137,16 @@
         </div>
       </section>
 
-      <!-- Botões Principais de Cadastro -->
+      <!-- Botões Principais de Cadastro, Relatórios e Clientes -->
       <div class="acoes-principais-admin">
         <button type="button" id="btnNovoProduto" class="btn-laranja-admin">
           ➕ Adicionar Novo Produto
+        </button>
+        <button type="button" id="btnAbrirRelatorioExcel" class="btn-primario-admin" style="width: auto;">
+          📊 Relatório Mensal (Excel)
+        </button>
+        <button type="button" id="btnAbrirClientesAdmin" class="btn-secundario-admin">
+          👥 Clientes Cadastrados
         </button>
         <button type="button" id="btnGerenciarCategorias" class="btn-secundario-admin">
           🏷️ Gerenciar Categorias
@@ -438,6 +444,91 @@
         </form>
 
         <div id="listaCategoriasGerenciar" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       6. MODAL: RELATÓRIO FINANCEIRO MENSAL (ENTRADAS, SAÍDAS E EXCEL)
+       ======================================================================== -->
+  <div id="modalRelatorioMensal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" style="max-width: 720px;" role="dialog" aria-labelledby="tituloModalRelatorio">
+      <div class="modal-topo">
+        <h2 id="tituloModalRelatorio">📊 Relatório Mensal (Entradas e Saídas)</h2>
+        <button type="button" id="btnFecharModalRelatorio" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-corpo">
+        <div class="form-grade-dupla" style="align-items: end; margin-bottom: 16px;">
+          <div class="form-grupo" style="margin-bottom: 0;">
+            <label for="selectMesRelatorio" class="form-label">Período (Mês / Ano)</label>
+            <select id="selectMesRelatorio" class="form-select"></select>
+          </div>
+
+          <div>
+            <button type="button" id="btnExportarExcelCompleto" class="btn-laranja-admin" style="width: 100%;">
+              📥 Baixar Planilha no Excel (.CSV)
+            </button>
+          </div>
+        </div>
+
+        <div class="resumo-grade" style="margin-bottom: 18px;">
+          <div class="resumo-card">
+            <span class="resumo-rotulo">📦 Entrada / Valor em Estoque</span>
+            <strong id="relEntradaValor" class="resumo-valor">R$ 0,00</strong>
+            <span id="relEntradaQtd" class="resumo-detalhe">0 unidades em estoque (custo)</span>
+          </div>
+
+          <div class="resumo-card">
+            <span class="resumo-rotulo">💸 Saídas / Vendas no Mês</span>
+            <strong id="relSaidaValor" class="resumo-valor">R$ 0,00</strong>
+            <span id="relSaidaQtd" class="resumo-detalhe">0 unidades vendidas</span>
+          </div>
+
+          <div class="resumo-card">
+            <span class="resumo-rotulo">🏷️ Custo das Saídas (CMV)</span>
+            <strong id="relCustoVendasValor" class="resumo-valor">R$ 0,00</strong>
+            <span class="resumo-detalhe">Custo dos itens vendidos no período</span>
+          </div>
+
+          <div class="resumo-card">
+            <span class="resumo-rotulo">📈 Lucro Líquido do Mês</span>
+            <strong id="relLucroLiquidoValor" class="resumo-valor" style="color: #0f3d2e;">R$ 0,00</strong>
+            <span class="resumo-detalhe">Receita menos custo das saídas</span>
+          </div>
+        </div>
+
+        <div class="divisor-secao-form">📋 Histórico de Saídas (Vendas Registradas no Período)</div>
+        <div id="listaVendasRelatorio" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7. MODAL: CLIENTES CADASTRADOS (COM ENDEREÇO E WHATSAPP)
+       ======================================================================== -->
+  <div id="modalClientesAdmin" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" style="max-width: 680px;" role="dialog" aria-labelledby="tituloModalClientesAdmin">
+      <div class="modal-topo">
+        <h2 id="tituloModalClientesAdmin">👥 Clientes Cadastrados</h2>
+        <button type="button" id="btnFecharModalClientesAdmin" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-corpo">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+          <span id="contagemClientesAdmin" style="font-size: 0.88rem; color: #57534e; font-weight: 500;">
+            0 clientes cadastrados
+          </span>
+          <button type="button" id="btnExportarClientesExcel" class="btn-primario-admin" style="width: auto; min-height: 40px; padding: 0 14px; font-size: 0.84rem;">
+            📥 Exportar Clientes (Excel)
+          </button>
+        </div>
+
+        <div id="listaClientesAdmin" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>

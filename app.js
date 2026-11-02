@@ -44,6 +44,7 @@
     termoBusca: "",
     carrinho: carregarCarrinhoSalvo(),
     clienteLogado: carregarClienteSalvo(),
+    acaoPendenteCompra: null,
     modoDemo: false
   };
 
@@ -795,7 +796,61 @@
     return linhas;
   }
 
+  function clienteEstaAptoParaCompra() {
+    return Boolean(
+      estado.clienteLogado &&
+        estado.clienteLogado.nome &&
+        String(estado.clienteLogado.endereco || "").trim().length >= 5
+    );
+  }
+
+  function solicitarLoginOuCadastroParaCompra(acaoPendente) {
+    estado.acaoPendenteCompra = acaoPendente;
+
+    // Fecha a gaveta do carrinho caso esteja aberta
+    const overlayCarrinho = document.getElementById("carrinhoOverlay");
+    if (overlayCarrinho) {
+      overlayCarrinho.classList.remove("aberto");
+      overlayCarrinho.setAttribute("aria-hidden", "true");
+    }
+
+    const modalCliente = document.getElementById("modalContaCliente");
+    if (modalCliente) {
+      atualizarInterfaceContaCliente();
+      alternarAbaModalCliente("cadastrar");
+      exibirFeedbackCliente(
+        "🔒 Para finalizar seu pedido, faça login ou cadastre-se informando seu endereço completo de entrega.",
+        "erro"
+      );
+      modalCliente.classList.add("aberto");
+      modalCliente.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function executarAcaoPendentePosLogin() {
+    if (!estado.acaoPendenteCompra || !clienteEstaAptoParaCompra()) return;
+    const acao = estado.acaoPendenteCompra;
+    estado.acaoPendenteCompra = null;
+
+    const modalCliente = document.getElementById("modalContaCliente");
+    if (modalCliente) {
+      modalCliente.classList.remove("aberto");
+      modalCliente.setAttribute("aria-hidden", "true");
+    }
+
+    if (acao.tipo === "produto" && acao.produto) {
+      pedirProdutoDiretoWhatsapp(acao.produto);
+    } else if (acao.tipo === "carrinho") {
+      enviarCarrinhoWhatsapp();
+    }
+  }
+
   function pedirProdutoDiretoWhatsapp(produto) {
+    if (!clienteEstaAptoParaCompra()) {
+      solicitarLoginOuCadastroParaCompra({ tipo: "produto", produto });
+      return;
+    }
+
     const numero = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
     const nomeLoja = CFG.NOME_LOJA || "P&G Preços Justos";
     const precoFormatado = formatarMoeda(produto.preco_venda);
@@ -935,6 +990,16 @@
       exibirFeedbackCliente("Por favor, informe um e-mail válido.");
       return;
     }
+    if (whatsapp.replace(/\D/g, "").length < 8) {
+      exibirFeedbackCliente("Por favor, informe seu WhatsApp com DDD.");
+      return;
+    }
+    if (endereco.length < 5) {
+      exibirFeedbackCliente(
+        "O endereço de entrega é obrigatório. Informe rua, número e bairro."
+      );
+      return;
+    }
     if (senha.length < 6) {
       exibirFeedbackCliente("A senha deve ter pelo menos 6 caracteres.");
       return;
@@ -989,6 +1054,7 @@
       salvarClienteLogado(dadosCliente);
       mostrarToast(`Bem-vindo(a), ${nome.split(" ")[0]}! Conta criada com sucesso.`);
       document.getElementById("formCadastroCliente")?.reset();
+      executarAcaoPendentePosLogin();
     } catch (erro) {
       exibirFeedbackCliente(erro.message || "Não foi possível concluir o cadastro.");
     } finally {
@@ -1042,6 +1108,7 @@
       salvarClienteLogado(dadosCliente);
       mostrarToast(`Olá, ${dadosCliente.nome.split(" ")[0]}!`);
       document.getElementById("formLoginCliente")?.reset();
+      executarAcaoPendentePosLogin();
     } catch (erro) {
       exibirFeedbackCliente(erro.message || "E-mail ou senha incorretos.");
     } finally {
@@ -1251,6 +1318,11 @@
 
   function enviarCarrinhoWhatsapp() {
     if (estado.carrinho.length === 0) return;
+
+    if (!clienteEstaAptoParaCompra()) {
+      solicitarLoginOuCadastroParaCompra({ tipo: "carrinho" });
+      return;
+    }
 
     const numero = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
     const nomeLoja = CFG.NOME_LOJA || "P&G Preços Justos";

@@ -386,6 +386,14 @@ BEGIN
         RAISE EXCEPTION 'Informe um e-mail válido.';
     END IF;
 
+    IF char_length(trim(COALESCE(p_whatsapp, ''))) < 8 THEN
+        RAISE EXCEPTION 'Informe seu WhatsApp com DDD.';
+    END IF;
+
+    IF char_length(trim(COALESCE(p_endereco, ''))) < 5 THEN
+        RAISE EXCEPTION 'O endereço de entrega é obrigatório. Informe rua, número e bairro.';
+    END IF;
+
     IF char_length(COALESCE(p_senha, '')) < 6 THEN
         RAISE EXCEPTION 'A senha deve ter pelo menos 6 caracteres.';
     END IF;

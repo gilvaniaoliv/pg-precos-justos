@@ -69,6 +69,9 @@
     categorias: [],
     produtos: [],
     vendasMes: [],
+    todasVendas: [],
+    clientes: [],
+    mesRelatorioSelecionado: "",
     busca: "",
     categoriaFiltro: "todas",
     chipFiltro: "todos", // todos | ativos | inativos | estoque_baixo | pesquisa_vencida
@@ -325,6 +328,28 @@
         data_venda: new Date().toISOString()
       }
     ];
+    estado.todasVendas = [...estado.vendasMes];
+    estado.clientes = [
+      {
+        id: "cli-demo-1",
+        nome: "Maria Oliveira",
+        email: "maria@exemplo.com",
+        whatsapp: "(71) 99999-1111",
+        endereco: "Rua das Flores, nº 45, Pituba, Salvador - BA",
+        criado_em: new Date().toISOString()
+      }
+    ];
+  }
+
+  function carregarClientesLocaisFallback() {
+    try {
+      const lista = JSON.parse(
+        localStorage.getItem("pg_precos_justos_contas_clientes_v1") || "[]"
+      );
+      return Array.isArray(lista) ? lista : [];
+    } catch (_) {
+      return [];
+    }
   }
 
   async function carregarDadosAdmin() {
@@ -341,7 +366,7 @@
       inicioMes.setDate(1);
       inicioMes.setHours(0, 0, 0, 0);
 
-      const [resCat, resProd, resVendas] = await Promise.all([
+      const [resCat, resProd, resVendas, resClientes] = await Promise.all([
         supabaseClient
           .from("categorias")
           .select("*")
@@ -354,8 +379,11 @@
         supabaseClient
           .from("vendas")
           .select("*")
-          .gte("data_venda", inicioMes.toISOString())
-          .order("data_venda", { ascending: false })
+          .order("data_venda", { ascending: false }),
+        supabaseClient
+          .from("clientes")
+          .select("*")
+          .order("criado_em", { ascending: false })
       ]);
 
       if (resCat.error) throw resCat.error;
@@ -364,7 +392,16 @@
 
       estado.categorias = resCat.data || [];
       estado.produtos = resProd.data || [];
-      estado.vendasMes = resVendas.data || [];
+      estado.todasVendas = resVendas.data || [];
+      estado.vendasMes = estado.todasVendas.filter(
+        (v) => new Date(v.data_venda) >= inicioMes
+      );
+
+      if (!resClientes.error && Array.isArray(resClientes.data)) {
+        estado.clientes = resClientes.data;
+      } else {
+        estado.clientes = carregarClientesLocaisFallback();
+      }
 
       atualizarSelectsCategorias();
       atualizarResumoDashboard();
@@ -1206,7 +1243,7 @@
 
       if (estado.modoDemo) {
         prod.estoque = Math.max(0, Number(prod.estoque) - qtd);
-        estado.vendasMes.unshift({
+        const novaVendaDemo = {
           id: "v-" + Date.now(),
           produto_id: prod.id,
           nome_produto_snapshot: prod.nome,
@@ -1217,7 +1254,9 @@
           abaixo_preco_minimo: abaixoDoMinimo,
           observacao,
           data_venda: new Date().toISOString()
-        });
+        };
+        estado.vendasMes.unshift(novaVendaDemo);
+        estado.todasVendas.unshift(novaVendaDemo);
       } else {
         // Chama a função transacional segura criada no setup.sql
         const { error } = await supabaseClient.rpc("registrar_venda_admin", {
@@ -1412,6 +1451,547 @@
   }
 
   // ==========================================================================
+  // 9B. RELATÓRIO FINANCEIRO MENSAL (ENTRADAS, SAÍDAS E EXPORTAÇÃO EXCEL)
+  // ==========================================================================
+
+  function obterChaveAnoMes(dataIso) {
+    const d = dataIso ? new Date(dataIso) : new Date();
+    if (isNaN(d.getTime())) return "";
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    return `${ano}-${mes}`;
+  }
+
+  function formatarRotuloAnoMes(chaveAnoMes) {
+    if (chaveAnoMes === "todos") return "Todos os meses (Histórico Completo)";
+    const partes = String(chaveAnoMes).split("-");
+    if (partes.length !== 2) return chaveAnoMes;
+    const nomesMeses = [
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro"
+    ];
+    const idx = parseInt(partes[1], 10) - 1;
+    return `${nomesMeses[idx] || partes[1]} de ${partes[0]}`;
+  }
+
+  function formatarDataHoraBR(dataIso) {
+    if (!dataIso) return "";
+    const d = new Date(dataIso);
+    if (isNaN(d.getTime())) return String(dataIso);
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function escaparCelulaCSV(valor) {
+    const texto = String(valor ?? "")
+      .replace(/\r?\n|\r/g, " ")
+      .replace(/"/g, '""')
+      .trim();
+    return `"${texto}"`;
+  }
+
+  function formatarNumeroExcelBR(valor) {
+    const num = Number(valor) || 0;
+    return num.toFixed(2).replace(".", ",");
+  }
+
+  function obterVendasFiltradasPorMes(chaveMes) {
+    const listaBase =
+      Array.isArray(estado.todasVendas) && estado.todasVendas.length > 0
+        ? estado.todasVendas
+        : estado.vendasMes;
+    if (!chaveMes || chaveMes === "todos") return listaBase;
+    return listaBase.filter((v) => obterChaveAnoMes(v.data_venda) === chaveMes);
+  }
+
+  function popularSelectMesesRelatorio() {
+    const select = document.getElementById("selectMesRelatorio");
+    if (!select) return;
+
+    const mesAtual = obterChaveAnoMes(new Date().toISOString());
+    const conjuntoMeses = new Set([mesAtual]);
+
+    (estado.todasVendas || []).forEach((v) => {
+      const ch = obterChaveAnoMes(v.data_venda);
+      if (ch) conjuntoMeses.add(ch);
+    });
+
+    const mesesOrdenados = Array.from(conjuntoMeses).sort().reverse();
+    if (!estado.mesRelatorioSelecionado) {
+      estado.mesRelatorioSelecionado = mesAtual;
+    }
+
+    select.textContent = "";
+    mesesOrdenados.forEach((ch) => {
+      const opt = document.createElement("option");
+      opt.value = ch;
+      opt.textContent = formatarRotuloAnoMes(ch);
+      select.appendChild(opt);
+    });
+
+    const optTodos = document.createElement("option");
+    optTodos.value = "todos";
+    optTodos.textContent = "Todos os meses (Histórico Completo)";
+    select.appendChild(optTodos);
+
+    select.value = estado.mesRelatorioSelecionado;
+  }
+
+  function atualizarPainelRelatorioMensal() {
+    const chaveMes = estado.mesRelatorioSelecionado || obterChaveAnoMes(new Date().toISOString());
+    const vendasPeriodo = obterVendasFiltradasPorMes(chaveMes);
+
+    // 1. Entrada / Posição atual em estoque (custo total investido)
+    let qtdTotalEstoque = 0;
+    let custoTotalEstoque = 0;
+    estado.produtos.forEach((p) => {
+      const qtd = Math.max(0, Number(p.estoque) || 0);
+      const custo = Number(p.preco_custo) || 0;
+      qtdTotalEstoque += qtd;
+      custoTotalEstoque += qtd * custo;
+    });
+
+    // 2. Saídas / Vendas no mês selecionado
+    let qtdUnidadesVendidas = 0;
+    let receitaTotalSaidas = 0;
+    let custoTotalSaidas = 0;
+
+    vendasPeriodo.forEach((v) => {
+      const qtd = Number(v.quantidade) || 1;
+      const total = Number(v.valor_total) || 0;
+      const custoUnit = Number(v.custo_unitario_snapshot) || 0;
+      qtdUnidadesVendidas += qtd;
+      receitaTotalSaidas += total;
+      custoTotalSaidas += qtd * custoUnit;
+    });
+
+    const lucroLiquido = receitaTotalSaidas - custoTotalSaidas;
+
+    const elEntradaValor = document.getElementById("relEntradaValor");
+    const elEntradaQtd = document.getElementById("relEntradaQtd");
+    const elSaidaValor = document.getElementById("relSaidaValor");
+    const elSaidaQtd = document.getElementById("relSaidaQtd");
+    const elCustoVendas = document.getElementById("relCustoVendasValor");
+    const elLucro = document.getElementById("relLucroLiquidoValor");
+
+    if (elEntradaValor) elEntradaValor.textContent = formatarMoeda(custoTotalEstoque);
+    if (elEntradaQtd) {
+      elEntradaQtd.textContent = `${qtdTotalEstoque} ${
+        qtdTotalEstoque === 1 ? "unidade" : "unidades"
+      } em estoque (preço de custo)`;
+    }
+    if (elSaidaValor) elSaidaValor.textContent = formatarMoeda(receitaTotalSaidas);
+    if (elSaidaQtd) {
+      elSaidaQtd.textContent = `${vendasPeriodo.length} ${
+        vendasPeriodo.length === 1 ? "venda" : "vendas"
+      } (${qtdUnidadesVendidas} un. vendidas)`;
+    }
+    if (elCustoVendas) elCustoVendas.textContent = formatarMoeda(custoTotalSaidas);
+    if (elLucro) elLucro.textContent = formatarMoeda(lucroLiquido);
+
+    // Renderiza lista de saídas do período
+    const containerLista = document.getElementById("listaVendasRelatorio");
+    if (!containerLista) return;
+    containerLista.textContent = "";
+
+    if (vendasPeriodo.length === 0) {
+      const vazio = document.createElement("div");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhuma venda registrada neste período.";
+      containerLista.appendChild(vazio);
+      return;
+    }
+
+    vendasPeriodo.forEach((v) => {
+      const item = document.createElement("div");
+      item.className = "carrinho-item";
+
+      const info = document.createElement("div");
+      info.style.flex = "1";
+
+      const titulo = document.createElement("div");
+      titulo.style.fontWeight = "600";
+      titulo.textContent = `${v.quantidade}x ${v.nome_produto_snapshot}`;
+
+      const sub = document.createElement("div");
+      sub.style.fontSize = "0.78rem";
+      sub.style.color = "#57534e";
+      const lucroVenda =
+        (Number(v.valor_total) || 0) -
+        (Number(v.custo_unitario_snapshot) || 0) * (Number(v.quantidade) || 1);
+      sub.textContent = `${formatarDataHoraBR(v.data_venda)} • Lucro: ${formatarMoeda(lucroVenda)}${
+        v.observacao ? ` • Obs.: ${v.observacao}` : ""
+      }`;
+
+      info.appendChild(titulo);
+      info.appendChild(sub);
+
+      const valorDir = document.createElement("strong");
+      valorDir.style.color = "#0f3d2e";
+      valorDir.textContent = formatarMoeda(v.valor_total);
+
+      item.appendChild(info);
+      item.appendChild(valorDir);
+      containerLista.appendChild(item);
+    });
+  }
+
+  function abrirModalRelatorioMensal() {
+    const modal = document.getElementById("modalRelatorioMensal");
+    popularSelectMesesRelatorio();
+    atualizarPainelRelatorioMensal();
+    if (modal) {
+      modal.classList.add("aberto");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function fecharModalRelatorioMensal() {
+    const modal = document.getElementById("modalRelatorioMensal");
+    if (modal) {
+      modal.classList.remove("aberto");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function baixarArquivoCSV(nomeArquivo, linhasArray) {
+    // BOM UTF-8 (\uFEFF) garante que o Excel no Windows reconheça acentos e colunas com ';'
+    const conteudo = "\uFEFF" + linhasArray.join("\r\n");
+    const blob = new Blob([conteudo], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeArquivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function exportarPlanilhaExcelCompleta() {
+    const chaveMes = estado.mesRelatorioSelecionado || obterChaveAnoMes(new Date().toISOString());
+    const rotuloPeriodo = formatarRotuloAnoMes(chaveMes);
+    const vendasPeriodo = obterVendasFiltradasPorMes(chaveMes);
+
+    let qtdTotalEstoque = 0;
+    let custoTotalEstoque = 0;
+    let valorPotencialVendaEstoque = 0;
+
+    estado.produtos.forEach((p) => {
+      const qtd = Math.max(0, Number(p.estoque) || 0);
+      const custo = Number(p.preco_custo) || 0;
+      const venda = Number(p.preco_venda) || 0;
+      qtdTotalEstoque += qtd;
+      custoTotalEstoque += qtd * custo;
+      valorPotencialVendaEstoque += qtd * venda;
+    });
+
+    let qtdVendidaMes = 0;
+    let receitaBrutaMes = 0;
+    let custoMercadoriasVendidasMes = 0;
+
+    vendasPeriodo.forEach((v) => {
+      const qtd = Number(v.quantidade) || 1;
+      qtdVendidaMes += qtd;
+      receitaBrutaMes += Number(v.valor_total) || 0;
+      custoMercadoriasVendidasMes += (Number(v.custo_unitario_snapshot) || 0) * qtd;
+    });
+
+    const lucroLiquidoMes = receitaBrutaMes - custoMercadoriasVendidasMes;
+
+    const linhas = [];
+
+    // BLOCO 1: RESUMO MENSAL DE ENTRADAS E SAÍDAS
+    linhas.push([
+      escaparCelulaCSV("RELATÓRIO FINANCEIRO E DE ESTOQUE - P&G PREÇOS JUSTOS"),
+      escaparCelulaCSV(`Período: ${rotuloPeriodo}`),
+      escaparCelulaCSV(`Gerado em: ${formatarDataHoraBR(new Date().toISOString())}`)
+    ].join(";"));
+    linhas.push("");
+
+    linhas.push([
+      escaparCelulaCSV("1. RESUMO DO PERÍODO (ENTRADAS, SAÍDAS E SALDO)"),
+      escaparCelulaCSV("QUANTIDADE"),
+      escaparCelulaCSV("VALOR (R$)")
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("ENTRADA / ESTOQUE ATUAL (Custo Total Investido em Produtos)"),
+      escaparCelulaCSV(`${qtdTotalEstoque} un.`),
+      escaparCelulaCSV(formatarNumeroExcelBR(custoTotalEstoque))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("VALOR POTENCIAL DE VENDA DO ESTOQUE ATUAL"),
+      escaparCelulaCSV(`${qtdTotalEstoque} un.`),
+      escaparCelulaCSV(formatarNumeroExcelBR(valorPotencialVendaEstoque))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("SAÍDAS / VENDAS REALIZADAS NO PERÍODO (Receita Bruta)"),
+      escaparCelulaCSV(`${vendasPeriodo.length} vendas (${qtdVendidaMes} un.)`),
+      escaparCelulaCSV(formatarNumeroExcelBR(receitaBrutaMes))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("CUSTO DAS MERCADORIAS VENDIDAS NO PERÍODO (CMV)"),
+      escaparCelulaCSV(`${qtdVendidaMes} un.`),
+      escaparCelulaCSV(formatarNumeroExcelBR(custoMercadoriasVendidasMes))
+    ].join(";"));
+
+    linhas.push([
+      escaparCelulaCSV("LUCRO LÍQUIDO DO PERÍODO (Receita - Custo das Saídas)"),
+      escaparCelulaCSV("-"),
+      escaparCelulaCSV(formatarNumeroExcelBR(lucroLiquidoMes))
+    ].join(";"));
+    linhas.push("");
+
+    // BLOCO 2: SAÍDAS DETALHADAS (VENDAS)
+    linhas.push([
+      escaparCelulaCSV("2. SAÍDAS DETALHADAS (HISTÓRICO DE VENDAS DO PERÍODO)")
+    ].join(";"));
+    linhas.push([
+      escaparCelulaCSV("Data e Hora"),
+      escaparCelulaCSV("Produto"),
+      escaparCelulaCSV("Quantidade Vendida"),
+      escaparCelulaCSV("Valor Unitário Vendido (R$)"),
+      escaparCelulaCSV("Custo Unitário (R$)"),
+      escaparCelulaCSV("Valor Total Recebido (R$)"),
+      escaparCelulaCSV("Custo Total da Venda (R$)"),
+      escaparCelulaCSV("Lucro Líquido da Venda (R$)"),
+      escaparCelulaCSV("Abaixo do Preço Mínimo?"),
+      escaparCelulaCSV("Observação")
+    ].join(";"));
+
+    vendasPeriodo.forEach((v) => {
+      const qtd = Number(v.quantidade) || 1;
+      const totalVenda = Number(v.valor_total) || 0;
+      const custoUnit = Number(v.custo_unitario_snapshot) || 0;
+      const custoTotal = custoUnit * qtd;
+      const lucro = totalVenda - custoTotal;
+
+      linhas.push([
+        escaparCelulaCSV(formatarDataHoraBR(v.data_venda)),
+        escaparCelulaCSV(v.nome_produto_snapshot),
+        escaparCelulaCSV(qtd),
+        escaparCelulaCSV(formatarNumeroExcelBR(v.valor_unitario)),
+        escaparCelulaCSV(formatarNumeroExcelBR(custoUnit)),
+        escaparCelulaCSV(formatarNumeroExcelBR(totalVenda)),
+        escaparCelulaCSV(formatarNumeroExcelBR(custoTotal)),
+        escaparCelulaCSV(formatarNumeroExcelBR(lucro)),
+        escaparCelulaCSV(v.abaixo_preco_minimo ? "Sim" : "Não"),
+        escaparCelulaCSV(v.observacao || "")
+      ].join(";"));
+    });
+    linhas.push("");
+
+    // BLOCO 3: ENTRADAS / POSIÇÃO DE ESTOQUE POR PRODUTO
+    linhas.push([
+      escaparCelulaCSV("3. ENTRADAS E POSIÇÃO ATUAL DO ESTOQUE (PRODUTOS CADASTRADOS)")
+    ].join(";"));
+    linhas.push([
+      escaparCelulaCSV("Produto"),
+      escaparCelulaCSV("Categoria / Subcategoria"),
+      escaparCelulaCSV("Status"),
+      escaparCelulaCSV("Quantidade em Estoque"),
+      escaparCelulaCSV("Preço de Custo Unitário (R$)"),
+      escaparCelulaCSV("Total Investido em Estoque (R$)"),
+      escaparCelulaCSV("Preço Mínimo Negociação (R$)"),
+      escaparCelulaCSV("Preço de Venda (R$)"),
+      escaparCelulaCSV("Lucro Unitário Estimado (R$)"),
+      escaparCelulaCSV("Preço Médio Mercado (R$)"),
+      escaparCelulaCSV("Data da Pesquisa")
+    ].join(";"));
+
+    estado.produtos.forEach((p) => {
+      const qtd = Math.max(0, Number(p.estoque) || 0);
+      const custo = Number(p.preco_custo) || 0;
+      const venda = Number(p.preco_venda) || 0;
+      const min = Number(p.preco_minimo_negociacao) || 0;
+      const medio = p.preco_medio_mercado !== null && p.preco_medio_mercado !== undefined
+        ? formatarNumeroExcelBR(p.preco_medio_mercado)
+        : "";
+
+      linhas.push([
+        escaparCelulaCSV(p.nome),
+        escaparCelulaCSV(obterNomeCategoria(p.categoria_id, p.subcategoria)),
+        escaparCelulaCSV(p.ativo ? "Ativo" : "Inativo"),
+        escaparCelulaCSV(qtd),
+        escaparCelulaCSV(formatarNumeroExcelBR(custo)),
+        escaparCelulaCSV(formatarNumeroExcelBR(qtd * custo)),
+        escaparCelulaCSV(formatarNumeroExcelBR(min)),
+        escaparCelulaCSV(formatarNumeroExcelBR(venda)),
+        escaparCelulaCSV(formatarNumeroExcelBR(venda - custo)),
+        escaparCelulaCSV(medio),
+        escaparCelulaCSV(p.data_pesquisa ? String(p.data_pesquisa).split("T")[0] : "")
+      ].join(";"));
+    });
+    linhas.push("");
+
+    // BLOCO 4: CLIENTES CADASTRADOS
+    linhas.push([
+      escaparCelulaCSV("4. CLIENTES CADASTRADOS NA LOJA")
+    ].join(";"));
+    linhas.push([
+      escaparCelulaCSV("Nome Completo"),
+      escaparCelulaCSV("WhatsApp"),
+      escaparCelulaCSV("E-mail"),
+      escaparCelulaCSV("Endereço Completo de Entrega"),
+      escaparCelulaCSV("Data de Cadastro")
+    ].join(";"));
+
+    (estado.clientes || []).forEach((c) => {
+      linhas.push([
+        escaparCelulaCSV(c.nome),
+        escaparCelulaCSV(c.whatsapp),
+        escaparCelulaCSV(c.email),
+        escaparCelulaCSV(c.endereco),
+        escaparCelulaCSV(formatarDataHoraBR(c.criado_em))
+      ].join(";"));
+    });
+
+    const nomeArquivo = `relatorio-pg-precos-justos-${chaveMes}.csv`;
+    baixarArquivoCSV(nomeArquivo, linhas);
+    mostrarToast("Planilha gerada com sucesso! Abra o arquivo no Excel.");
+  }
+
+  // ==========================================================================
+  // 9C. MODAL DE CLIENTES CADASTRADOS
+  // ==========================================================================
+
+  function renderizarListaClientesAdmin() {
+    const container = document.getElementById("listaClientesAdmin");
+    const elContagem = document.getElementById("contagemClientesAdmin");
+    if (!container) return;
+
+    const lista = estado.clientes || [];
+    if (elContagem) {
+      elContagem.textContent = `${lista.length} ${
+        lista.length === 1 ? "cliente cadastrado" : "clientes cadastrados"
+      }`;
+    }
+
+    container.textContent = "";
+
+    if (lista.length === 0) {
+      const vazio = document.createElement("div");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhum cliente cadastrado ainda.";
+      container.appendChild(vazio);
+      return;
+    }
+
+    lista.forEach((cli) => {
+      const card = document.createElement("div");
+      card.className = "carrinho-item";
+      card.style.alignItems = "flex-start";
+
+      const info = document.createElement("div");
+      info.style.flex = "1";
+
+      const nome = document.createElement("div");
+      nome.style.fontWeight = "600";
+      nome.style.fontSize = "0.95rem";
+      nome.textContent = cli.nome || "Cliente";
+
+      const linhaContato = document.createElement("div");
+      linhaContato.style.fontSize = "0.82rem";
+      linhaContato.style.color = "#57534e";
+      linhaContato.style.marginTop = "2px";
+      linhaContato.textContent = `📱 ${cli.whatsapp || "Sem WhatsApp"} • ✉️ ${cli.email || ""}`;
+
+      const linhaEnd = document.createElement("div");
+      linhaEnd.style.fontSize = "0.83rem";
+      linhaEnd.style.color = "#1c1917";
+      linhaEnd.style.marginTop = "4px";
+      linhaEnd.textContent = `📍 Endereço: ${cli.endereco || "Não informado"}`;
+
+      info.appendChild(nome);
+      info.appendChild(linhaContato);
+      info.appendChild(linhaEnd);
+
+      card.appendChild(info);
+
+      if (cli.whatsapp) {
+        const numLimpo = String(cli.whatsapp).replace(/\D/g, "");
+        if (numLimpo.length >= 8) {
+          const linkWa = document.createElement("a");
+          linkWa.className = "btn-secundario-admin";
+          linkWa.style.minHeight = "34px";
+          linkWa.style.padding = "0 10px";
+          linkWa.style.fontSize = "0.78rem";
+          linkWa.href = `https://wa.me/${numLimpo.startsWith("55") ? numLimpo : "55" + numLimpo}`;
+          linkWa.target = "_blank";
+          linkWa.rel = "noopener noreferrer";
+          linkWa.textContent = "📲 WhatsApp";
+          card.appendChild(linkWa);
+        }
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  function abrirModalClientesAdmin() {
+    const modal = document.getElementById("modalClientesAdmin");
+    renderizarListaClientesAdmin();
+    if (modal) {
+      modal.classList.add("aberto");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function fecharModalClientesAdmin() {
+    const modal = document.getElementById("modalClientesAdmin");
+    if (modal) {
+      modal.classList.remove("aberto");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function exportarClientesExcel() {
+    const linhas = [
+      [
+        escaparCelulaCSV("Nome Completo"),
+        escaparCelulaCSV("WhatsApp"),
+        escaparCelulaCSV("E-mail"),
+        escaparCelulaCSV("Endereço Completo de Entrega"),
+        escaparCelulaCSV("Data de Cadastro")
+      ].join(";")
+    ];
+
+    (estado.clientes || []).forEach((c) => {
+      linhas.push(
+        [
+          escaparCelulaCSV(c.nome),
+          escaparCelulaCSV(c.whatsapp),
+          escaparCelulaCSV(c.email),
+          escaparCelulaCSV(c.endereco),
+          escaparCelulaCSV(formatarDataHoraBR(c.criado_em))
+        ].join(";")
+      );
+    });
+
+    baixarArquivoCSV("clientes-pg-precos-justos.csv", linhas);
+    mostrarToast("Lista de clientes exportada para o Excel!");
+  }
+
+  // ==========================================================================
   // 10. EVENTOS E INICIALIZAÇÃO DO PAINEL
   // ==========================================================================
 
@@ -1587,6 +2167,34 @@
     document
       .getElementById("btnRestaurarCategoriasPadrao")
       ?.addEventListener("click", aplicarCategoriasOrganizadasPadrao);
+
+    // Modal de Relatório Mensal e Excel
+    document
+      .getElementById("btnAbrirRelatorioExcel")
+      ?.addEventListener("click", abrirModalRelatorioMensal);
+    document
+      .getElementById("btnFecharModalRelatorio")
+      ?.addEventListener("click", fecharModalRelatorioMensal);
+    document
+      .getElementById("selectMesRelatorio")
+      ?.addEventListener("change", (e) => {
+        estado.mesRelatorioSelecionado = e.target.value;
+        atualizarPainelRelatorioMensal();
+      });
+    document
+      .getElementById("btnExportarExcelCompleto")
+      ?.addEventListener("click", exportarPlanilhaExcelCompleta);
+
+    // Modal de Clientes Cadastrados
+    document
+      .getElementById("btnAbrirClientesAdmin")
+      ?.addEventListener("click", abrirModalClientesAdmin);
+    document
+      .getElementById("btnFecharModalClientesAdmin")
+      ?.addEventListener("click", fecharModalClientesAdmin);
+    document
+      .getElementById("btnExportarClientesExcel")
+      ?.addEventListener("click", exportarClientesExcel);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
