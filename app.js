@@ -808,7 +808,7 @@
       `  Valor: *${precoFormatado}*`,
       ...montarBlocoIdentificacaoCliente(),
       ``,
-      `Podemos confirmar a disponibilidade e o pagamento via Pix?`
+      `Podemos confirmar a disponibilidade e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
@@ -1271,7 +1271,7 @@
       `*Total do pedido: ${formatarMoeda(total)}*`,
       ...montarBlocoIdentificacaoCliente(),
       ``,
-      `Como podemos combinar a entrega/retirada e o pagamento via Pix?`
+      `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;

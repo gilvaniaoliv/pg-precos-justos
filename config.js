@@ -41,7 +41,7 @@ window.LOJA_CONFIG = {
   BANNER_TAG: "Ofertas Transparentes",
   BANNER_TITULO: "Produtos selecionados com preços na média do mercado ou abaixo!",
   BANNER_SUBTITULO:
-    "Compare nosso preço com a pesquisa atualizada de mercado, monte sua lista e finalize direto pelo WhatsApp com pagamento via Pix.",
+    "Compare nosso preço com a pesquisa atualizada de mercado, monte sua lista e finalize direto pelo WhatsApp com pagamento via Pix ou Cartão.",
 
   // ==========================================================================
   // 3. REGRAS DE EXIBIÇÃO E SEGURANÇA (Não precisa alterar, já seguem seu pedido)
