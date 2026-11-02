@@ -411,11 +411,11 @@
     if (btnFlutuante) btnFlutuante.href = urlWaGeral;
     if (linkWaRodape) {
       linkWaRodape.href = urlWaGeral;
-      linkWaRodape.textContent = `💬 WhatsApp: ${whatsappExibicao}`;
+      linkWaRodape.textContent = `WhatsApp: ${whatsappExibicao}`;
     }
     if (linkInstaRodape) {
       linkInstaRodape.href = instagramUrl;
-      linkInstaRodape.textContent = `📸 Instagram: @${instagramUsuario}`;
+      linkInstaRodape.textContent = `Instagram: @${instagramUsuario}`;
     }
   }
 
@@ -565,7 +565,7 @@
     const spanEsq = document.createElement("span");
     if (produto.destaque) {
       spanEsq.className = "selo selo-destaque";
-      spanEsq.textContent = "⭐ Destaque";
+      spanEsq.textContent = "Destaque";
     }
     divSelos.appendChild(spanEsq);
 
@@ -577,7 +577,7 @@
     } else if (statusEstoque.ultimasUnidades) {
       const seloUltimas = document.createElement("span");
       seloUltimas.className = "selo selo-ultimas-unidades";
-      seloUltimas.textContent = "🔥 Últimas unidades";
+      seloUltimas.textContent = "Últimas unidades";
       divSelos.appendChild(seloUltimas);
     }
 
@@ -660,10 +660,11 @@
       btnCarrinho.disabled = true;
       btnCarrinho.textContent = "Indisponível";
     } else {
-      btnWhatsapp.textContent = "📲 Pedir pelo WhatsApp";
+      btnWhatsapp.textContent = "Pedir pelo WhatsApp";
       btnWhatsapp.addEventListener("click", () => pedirProdutoDiretoWhatsapp(produto));
 
-      btnCarrinho.textContent = "🛒 Adicionar ao Pedido";
+      btnCarrinho.textContent = "+ Lista";
+      btnCarrinho.title = "Adicionar produto à sua lista de pedido";
       btnCarrinho.addEventListener("click", () => adicionarAoCarrinho(produto));
     }
 
@@ -737,12 +738,12 @@
         const nomeBase = catObj ? catObj.nome : "Produtos";
         tituloGrade.textContent =
           estado.subcategoriaSelecionada !== "todas"
-            ? `📦 ${nomeBase} • ${estado.subcategoriaSelecionada}`
-            : `📦 ${nomeBase}`;
+            ? `${nomeBase} — ${estado.subcategoriaSelecionada}`
+            : nomeBase;
       } else if (termo) {
-        tituloGrade.textContent = `🔍 Resultados para "${estado.termoBusca.trim()}"`;
+        tituloGrade.textContent = `Resultados para "${estado.termoBusca.trim()}"`;
       } else {
-        tituloGrade.textContent = "📦 Todos os Produtos";
+        tituloGrade.textContent = "Catálogo de Produtos";
       }
     }
 

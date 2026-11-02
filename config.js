@@ -38,10 +38,10 @@ window.LOJA_CONFIG = {
   INSTAGRAM_URL: "https://instagram.com/precosjustos.pg",
 
   // Texto do banner principal no topo da vitrine
-  BANNER_TAG: "Ofertas Transparentes",
-  BANNER_TITULO: "Preços na média do mercado ou abaixo, sem truques!",
+  BANNER_TAG: "Catálogo Oficial",
+  BANNER_TITULO: "Preços na média do mercado ou abaixo, com total transparência.",
   BANNER_SUBTITULO:
-    "Compare nossa pesquisa de mercado em cada produto, monte seu pedido no site e finalize direto com a gente pelo WhatsApp com pagamento via Pix.",
+    "Consulte nossa pesquisa de mercado em cada item, adicione os produtos desejados à sua lista e finalize o atendimento diretamente pelo WhatsApp.",
 
   // ==========================================================================
   // 3. REGRAS DE EXIBIÇÃO E SEGURANÇA (Não precisa alterar, já seguem seu pedido)

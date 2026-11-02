@@ -1,52 +1,62 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>P&amp;G Preços Justos | Catálogo de Ofertas</title>
-  <meta name="description"
-    content="P&G Preços Justos - Produtos variados com preços na média do mercado ou abaixo. Monte seu pedido e finalize pelo WhatsApp com pagamento via Pix." />
-  <meta name="theme-color" content="#0f3d2e" />
+  <title>P&amp;G Preços Justos | Catálogo Oficial</title>
+  <meta
+    name="description"
+    content="P&G Preços Justos - Produtos selecionados com preços na média do mercado ou abaixo. Monte seu pedido e finalize pelo WhatsApp com pagamento via Pix."
+  />
+  <meta name="theme-color" content="#11382a" />
   <link rel="icon" type="image/png" href="img/logo-quadrada.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
   <!-- ========================================================================
-       TOPO COM LOGO, MENU E CARRINHO
+       CABEÇALHO E NAVEGAÇÃO
        ======================================================================== -->
   <header class="cabecalho">
     <div class="container cabecalho-principal-wrapper">
       <div class="cabecalho-interno">
-        <!-- Logo Oficial P&G Preços Justos -->
         <a href="#" class="marca" aria-label="Início - P&G Preços Justos">
-          <img src="img/logo-horizontal.png" alt="P&G Preços Justos" class="marca-logo-img" />
+          <img
+            src="img/logo-horizontal.png"
+            alt="P&G Preços Justos"
+            class="marca-logo-img"
+          />
         </a>
 
-        <!-- Botões de Carrinho e Menu Mobile -->
         <div class="acoes-topo">
-          <button type="button" id="btnAbrirCarrinho" class="btn-carrinho-topo" aria-label="Abrir carrinho de pedido">
-            <span>🛒 Pedido</span>
+          <button
+            type="button"
+            id="btnAbrirCarrinho"
+            class="btn-carrinho-topo"
+            aria-label="Abrir lista de pedido"
+          >
+            <span>Meu Pedido</span>
             <span id="contadorCarrinho" class="contador-carrinho">0</span>
           </button>
 
-          <button type="button" id="btnMenuMobile" class="btn-menu-mobile" aria-label="Abrir menu de navegação"
-            aria-expanded="false">
+          <button
+            type="button"
+            id="btnMenuMobile"
+            class="btn-menu-mobile"
+            aria-label="Abrir menu de navegação"
+            aria-expanded="false"
+          >
             ☰
           </button>
         </div>
       </div>
 
-      <!-- Menu simples -->
       <nav id="menuNavegacao" class="menu-navegacao" aria-label="Menu principal">
         <ul class="menu-lista">
-          <li><a href="#secaoDestaques" class="link-menu">Destaques</a></li>
-          <li><a href="#secaoCatalogo" class="link-menu">Produtos</a></li>
+          <li><a href="#secaoCatalogo" class="link-menu">Catálogo</a></li>
           <li><a href="#comoComprar" class="link-menu">Como Comprar</a></li>
           <li><a href="#perguntasFrequentes" class="link-menu">Dúvidas</a></li>
-          <li><a href="#politicasLoja" class="link-menu">Entregas e Trocas</a></li>
-          <li><a href="admin/index.html" class="link-menu">🔒 Área Restrita (Admin)</a></li>
+          <li><a href="#politicasLoja" class="link-menu">Políticas</a></li>
+          <li><a href="admin/index.html" class="link-menu">Área Restrita</a></li>
         </ul>
       </nav>
     </div>
@@ -54,36 +64,42 @@
 
   <main>
     <!-- ======================================================================
-         BANNER DE PROMOÇÕES
+         APRESENTAÇÃO SÓBRIA E ENXUTA
          ====================================================================== -->
     <section class="banner-secao">
       <div class="container">
         <div class="banner-card">
-          <span id="bannerTag" class="banner-tag">Ofertas Transparentes</span>
+          <span id="bannerTag" class="banner-tag">Catálogo Oficial</span>
           <h1 id="bannerTitulo" class="banner-titulo">
-            Preços na média do mercado ou abaixo, sem truques!
+            Preços na média do mercado ou abaixo, com total transparência.
           </h1>
           <p id="bannerSubtitulo" class="banner-subtitulo">
-            Compare nossa pesquisa de mercado em cada produto, monte seu pedido no site e finalize direto com a gente
-            pelo WhatsApp com pagamento via Pix.
+            Consulte nossa pesquisa de mercado em cada item, adicione os produtos desejados à sua lista e finalize o atendimento diretamente pelo WhatsApp.
           </p>
-          <div class="banner-acoes">
-            <a href="#secaoCatalogo" class="btn-banner-primario">Ver Produtos Disponíveis</a>
-            <a href="#comoComprar" class="btn-banner-secundario">Como Funciona</a>
-          </div>
         </div>
       </div>
     </section>
 
     <!-- ======================================================================
-         BUSCA POR NOME E FILTRO POR CATEGORIA
+         BUSCA E FILTROS (CATEGORIAS E SUBCATEGORIAS)
          ====================================================================== -->
     <section class="filtros-secao" aria-label="Busca e filtro de produtos">
       <div class="container">
         <div class="busca-wrapper">
-          <input type="search" id="inputBusca" class="input-busca" placeholder="Buscar produto pelo nome..."
-            autocomplete="off" aria-label="Buscar produto pelo nome" />
-          <button type="button" id="btnLimparBusca" class="btn-limpar-busca" aria-label="Limpar busca">
+          <input
+            type="search"
+            id="inputBusca"
+            class="input-busca"
+            placeholder="Pesquisar produto por nome ou subcategoria..."
+            autocomplete="off"
+            aria-label="Pesquisar produto"
+          />
+          <button
+            type="button"
+            id="btnLimparBusca"
+            class="btn-limpar-busca"
+            aria-label="Limpar busca"
+          >
             ✕
           </button>
         </div>
@@ -94,7 +110,7 @@
           </button>
         </div>
 
-        <!-- Barra de Subcategorias (ex.: Cômodos da casa, Masculino, Feminino, Infantil) -->
+        <!-- Barra de Subcategorias (Cômodos da casa, Masculino, Feminino, Infantil) -->
         <div
           id="listaSubcategorias"
           class="subcategorias-lista"
@@ -111,7 +127,7 @@
     <section id="secaoDestaques" class="secao-produtos" style="display: none;">
       <div class="container">
         <div class="cabecalho-secao">
-          <h2 class="titulo-secao">⭐ Produtos em Destaque</h2>
+          <h2 class="titulo-secao">Destaques</h2>
           <span id="contagemDestaques" class="subtitulo-contagem"></span>
         </div>
         <div id="gradeDestaques" class="grade-produtos"></div>
@@ -124,7 +140,7 @@
     <section id="secaoCatalogo" class="secao-produtos">
       <div class="container">
         <div class="cabecalho-secao">
-          <h2 id="tituloGradePrincipal" class="titulo-secao">📦 Todos os Produtos</h2>
+          <h2 id="tituloGradePrincipal" class="titulo-secao">Catálogo de Produtos</h2>
           <span id="contagemProdutos" class="subtitulo-contagem">Carregando...</span>
         </div>
         <div id="gradeProdutos" class="grade-produtos">
@@ -134,19 +150,20 @@
     </section>
 
     <!-- ======================================================================
-         SEÇÃO: COMO COMPRAR (3 PASSOS)
+         SEÇÃO: COMO COMPRAR (3 PASSOS SIMPLES)
          ====================================================================== -->
     <section id="comoComprar" class="secao-info">
       <div class="container">
-        <h2 class="titulo-secao">🛍️ Como comprar em 3 passos</h2>
+        <div class="cabecalho-secao">
+          <h2 class="titulo-secao">Como Comprar</h2>
+        </div>
         <div class="grade-passos">
           <div class="passo-card">
             <div class="passo-numero">1</div>
             <div>
-              <h3 class="passo-titulo">Escolha seus produtos</h3>
+              <h3 class="passo-titulo">Selecione os produtos</h3>
               <p class="passo-texto">
-                Navegue pelo catálogo, veja a comparação transparente com o preço médio de mercado e adicione os itens
-                ao seu pedido (ou clique direto em "Pedir pelo WhatsApp").
+                Navegue pelas categorias, confira o comparativo de preço de mercado e adicione os itens ao seu pedido.
               </p>
             </div>
           </div>
@@ -154,10 +171,9 @@
           <div class="passo-card">
             <div class="passo-numero">2</div>
             <div>
-              <h3 class="passo-titulo">Envie a lista no WhatsApp</h3>
+              <h3 class="passo-titulo">Envie pelo WhatsApp</h3>
               <p class="passo-texto">
-                Com um toque, o site monta automaticamente uma mensagem organizada com seus produtos, quantidades e
-                valor total direto para o nosso WhatsApp.
+                O sistema gera automaticamente um resumo organizado com os produtos, quantidades e valor total.
               </p>
             </div>
           </div>
@@ -165,10 +181,9 @@
           <div class="passo-card">
             <div class="passo-numero">3</div>
             <div>
-              <h3 class="passo-titulo">Combine o Pix e a Entrega</h3>
+              <h3 class="passo-titulo">Combine Entrega e Pix</h3>
               <p class="passo-texto">
-                Confirmamos a disponibilidade imediata na conversa, combinamos a entrega ou retirada e você realiza o
-                pagamento com segurança via Pix.
+                Confirmamos a disponibilidade imediata na conversa, alinhamos a entrega ou retirada e o pagamento via Pix.
               </p>
             </div>
           </div>
@@ -177,42 +192,39 @@
     </section>
 
     <!-- ======================================================================
-         SEÇÃO: PERGUNTAS FREQUENTES (FAQ - TEXTOS DE EXEMPLO REVISÁVEIS)
+         SEÇÃO: PERGUNTAS FREQUENTES
          ====================================================================== -->
     <section id="perguntasFrequentes" class="secao-info">
       <div class="container">
-        <h2 class="titulo-secao">❓ Perguntas Frequentes</h2>
+        <div class="cabecalho-secao">
+          <h2 class="titulo-secao">Perguntas Frequentes</h2>
+        </div>
         <div class="faq-lista">
           <details class="faq-item">
-            <summary>Por que não há pagamento direto dentro do site?</summary>
+            <summary>Por que o pedido é finalizado pelo WhatsApp?</summary>
             <div class="faq-resposta">
-              Trabalhamos com atendimento direto pelo WhatsApp para garantir agilidade, confirmar sua entrega na hora e
-              evitar taxas extras de intermediários — assim conseguimos manter preços na média do mercado ou abaixo!
+              O atendimento direto permite confirmar a entrega rapidamente e eliminar taxas de intermediários, mantendo preços justos para o cliente.
             </div>
           </details>
 
           <details class="faq-item">
             <summary>O que significa "Preço médio no mercado" nos produtos?</summary>
             <div class="faq-resposta">
-              É o valor médio que pesquisamos em outras lojas para o mesmo produto, mostrando sempre o dia e o mês em
-              que a pesquisa foi feita. Só exibimos pesquisas recentes (dos últimos 60 dias) para que você tenha uma
-              referência justa e transparente.
+              É o valor médio pesquisado em outras lojas para o mesmo item, exibindo a data da pesquisa. Apenas pesquisas realizadas nos últimos 60 dias são apresentadas.
             </div>
           </details>
 
           <details class="faq-item">
             <summary>Os produtos estão disponíveis para pronta entrega?</summary>
             <div class="faq-resposta">
-              Sim! Todos os produtos ativos com botão liberado no catálogo estão disponíveis em nosso estoque. Quando
-              restam menos de 3 unidades, o site avisa com o selo "Últimas unidades".
+              Sim. Todos os itens ativos com botão disponível encontram-se em estoque. Quando restam menos de 3 unidades, o produto exibe a indicação "Últimas unidades".
             </div>
           </details>
 
           <details class="faq-item">
-            <summary>Como funciona o pagamento via Pix?</summary>
+            <summary>Como é realizado o pagamento via Pix?</summary>
             <div class="faq-resposta">
-              Assim que você envia seu pedido pelo WhatsApp e confirmamos a forma de entrega ou retirada, informamos a
-              chave Pix oficial da loja na própria conversa.
+              Após enviar sua lista pelo WhatsApp e definirmos a modalidade de entrega ou retirada, informamos a chave Pix oficial da loja na própria conversa.
             </div>
           </details>
         </div>
@@ -220,34 +232,32 @@
     </section>
 
     <!-- ======================================================================
-         SEÇÃO: POLÍTICA DE TROCA, ENTREGA E PAGAMENTO (TEXTOS DE EXEMPLO)
+         SEÇÃO: POLÍTICAS DE ENTREGA, PAGAMENTO E TROCA
          ====================================================================== -->
     <section id="politicasLoja" class="secao-info">
       <div class="container">
-        <h2 class="titulo-secao">📋 Políticas de Entrega, Pagamento e Troca</h2>
+        <div class="cabecalho-secao">
+          <h2 class="titulo-secao">Políticas de Pagamento, Entrega e Troca</h2>
+        </div>
         <div class="grade-politicas">
           <article class="politica-card">
-            <h3>💳 Pagamento</h3>
+            <h3>Pagamento</h3>
             <p>
-              O pagamento é combinado diretamente no atendimento via WhatsApp, realizado por <strong>Pix</strong> no
-              momento da confirmação do pedido ou na retirada/entrega, conforme combinado na conversa.
+              Realizado via <strong>Pix</strong>, combinado diretamente durante o atendimento pelo WhatsApp na confirmação do pedido ou no ato da retirada/entrega.
             </p>
           </article>
 
           <article class="politica-card">
-            <h3>🚚 Entrega e Retirada</h3>
+            <h3>Entrega e Retirada</h3>
             <p>
-              Realizamos entregas locais (consulte taxa e bairro pelo WhatsApp) e também oferecemos opção de retirada
-              combinada com horário marcado para sua comodidade.
+              Disponibilizamos entregas locais (consulte condições para a sua região pelo WhatsApp) e opção de retirada com horário previamente agendado.
             </p>
           </article>
 
           <article class="politica-card">
-            <h3>🔄 Política de Troca</h3>
+            <h3>Política de Troca</h3>
             <p>
-              Conferimos todos os produtos antes da entrega. Caso o item apresente qualquer defeito de fabricação, entre
-              em contato pelo nosso WhatsApp em até 7 dias corridos após o recebimento para realizarmos a troca ou
-              reembolso.
+              Todos os itens são conferidos antes do envio. Em caso de defeito de fabricação, solicite a troca ou o reembolso pelo nosso WhatsApp em até 7 dias corridos após o recebimento.
             </p>
           </article>
         </div>
@@ -263,8 +273,8 @@
       <div class="rodape-grade">
         <div>
           <h3 id="nomeLojaRodape" class="rodape-titulo">P&amp;G Preços Justos</h3>
-          <p id="sloganRodape" style="font-size: 0.9rem; color: rgba(255,255,255,0.85);">
-            Produtos variados com preços na média do mercado ou abaixo!
+          <p id="sloganRodape" style="font-size: 0.86rem; color: rgba(255,255,255,0.75);">
+            Produtos variados com preços na média do mercado ou abaixo.
           </p>
         </div>
 
@@ -273,45 +283,43 @@
           <ul class="rodape-links">
             <li>
               <a id="linkWhatsappRodape" href="https://wa.me/5571999915480" target="_blank" rel="noopener noreferrer">
-                💬 WhatsApp: (71) 99991-5480
+                WhatsApp: (71) 99991-5480
               </a>
             </li>
             <li>
-              <a id="linkInstagramRodape" href="https://instagram.com/precosjustos.pg" target="_blank"
-                rel="noopener noreferrer">
-                📸 Instagram: @precosjustos.pg
+              <a id="linkInstagramRodape" href="https://instagram.com/precosjustos.pg" target="_blank" rel="noopener noreferrer">
+                Instagram: @precosjustos.pg
               </a>
             </li>
           </ul>
         </div>
 
         <div>
-          <h3 class="rodape-titulo">Acesso Rápido</h3>
+          <h3 class="rodape-titulo">Navegação</h3>
           <ul class="rodape-links">
             <li><a href="#secaoCatalogo">Catálogo de Produtos</a></li>
             <li><a href="#comoComprar">Como Comprar</a></li>
-            <li><a href="#politicasLoja">Trocas e Entregas</a></li>
-            <li><a href="admin/index.html" style="opacity: 0.75;">🔒 Painel Admin</a></li>
+            <li><a href="#politicasLoja">Políticas da Loja</a></li>
+            <li><a href="admin/index.html" style="opacity: 0.75;">Painel Administrativo</a></li>
           </ul>
         </div>
       </div>
 
       <div class="rodape-base">
-        <span>&copy; <span id="anoAtual">2026</span> <span id="nomeLojaCopy">P&amp;G Preços Justos</span>. Todos os
-          direitos reservados.</span>
-        <span>Catálogo online com pedido via WhatsApp.</span>
+        <span>&copy; <span id="anoAtual">2026</span> <span id="nomeLojaCopy">P&amp;G Preços Justos</span>. Todos os direitos reservados.</span>
+        <span>Atendimento e pedidos via WhatsApp.</span>
       </div>
     </div>
   </footer>
 
   <!-- ========================================================================
-       GAVETA (DRAWER) DO CARRINHO SIMPLES
+       GAVETA (DRAWER) DO PEDIDO
        ======================================================================== -->
   <div id="carrinhoOverlay" class="carrinho-overlay" aria-hidden="true">
     <aside class="carrinho-painel" aria-label="Seu pedido">
       <div class="carrinho-topo">
-        <h2>🛒 Seu Pedido</h2>
-        <button type="button" id="btnFecharCarrinho" class="btn-fechar-carrinho" aria-label="Fechar carrinho">
+        <h2>Resumo do Pedido</h2>
+        <button type="button" id="btnFecharCarrinho" class="btn-fechar-carrinho" aria-label="Fechar pedido">
           ✕
         </button>
       </div>
@@ -324,34 +332,36 @@
           <span id="carrinhoTotalValor">R$ 0,00</span>
         </div>
         <p class="carrinho-aviso-pix">
-          O pagamento via Pix e a entrega são combinados direto na conversa do WhatsApp.
+          O pagamento via Pix e a entrega são combinados diretamente na conversa do WhatsApp.
         </p>
         <button type="button" id="btnFinalizarWhatsapp" class="btn-finalizar-whatsapp">
-          📲 Enviar Pedido pelo WhatsApp
+          Finalizar Pedido pelo WhatsApp
         </button>
         <button type="button" id="btnLimparCarrinho" class="btn-limpar-carrinho">
-          Esvaziar carrinho
+          Limpar lista
         </button>
       </div>
     </aside>
   </div>
 
   <!-- ========================================================================
-       BOTÃO FLUTUANTE DE WHATSAPP E NOTIFICAÇÃO RÁPIDA
+       BOTÃO FLUTUANTE DE WHATSAPP E NOTIFICAÇÃO
        ======================================================================== -->
-  <a id="btnWhatsappFlutuante" href="https://wa.me/5571999915480" target="_blank" rel="noopener noreferrer"
-    class="btn-whatsapp-flutuante" aria-label="Falar com a loja no WhatsApp">
-    <span>💬 WhatsApp</span>
+  <a
+    id="btnWhatsappFlutuante"
+    href="https://wa.me/5571999915480"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="btn-whatsapp-flutuante"
+    aria-label="Atendimento via WhatsApp"
+  >
+    <span>Atendimento WhatsApp</span>
   </a>
 
   <div id="toastNotificacao" class="toast-notificacao" role="status" aria-live="polite"></div>
 
-  <!-- Biblioteca oficial do Supabase via CDN (sem npm / sem build) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Configuração centralizada da loja -->
   <script src="config.js"></script>
-  <!-- Lógica da vitrine pública -->
   <script src="app.js"></script>
 </body>
-
 </html>
