@@ -302,11 +302,11 @@ a {
 }
 
 .banner-titulo {
-  font-size: 1.34rem;
-  font-weight: 600;
-  line-height: 1.26;
+  font-size: 1.42rem;
+  font-weight: 800;
+  line-height: 1.24;
   margin-bottom: 8px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .banner-subtitulo {

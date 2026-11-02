@@ -39,7 +39,7 @@ window.LOJA_CONFIG = {
 
   // Texto do banner principal no topo da vitrine
   BANNER_TAG: "Ofertas Transparentes",
-  BANNER_TITULO: "Produtos selecionados com preços na média do mercado ou abaixo!",
+  BANNER_TITULO: "Preços na média do mercado ou abaixo, sem truques!",
   BANNER_SUBTITULO:
     "Compare nosso preço com a pesquisa atualizada de mercado, monte sua lista e finalize direto pelo WhatsApp com pagamento via Pix ou Cartão.",
 
