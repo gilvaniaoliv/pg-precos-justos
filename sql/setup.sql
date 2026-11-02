@@ -23,6 +23,7 @@ ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias TEXT[] NOT 
 
 -- Categoria arquivada fica oculta na vitrine (com seus produtos) sem ser apagada
 ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS arquivada BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias_arquivadas TEXT[] NOT NULL DEFAULT '{}';
 
 -- ============================================================================
 -- 2. TABELA DE PRODUTOS (CONTÉM CAMPOS PÚBLICOS E CAMPOS RESTRITOS DO ADMIN)

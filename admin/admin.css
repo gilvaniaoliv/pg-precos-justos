@@ -724,3 +724,25 @@
   color: var(--cor-verde-escuro);
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+/* Subcategorias clicáveis (arquivar/desarquivar) no modal de categorias */
+.chip-subcategoria {
+  min-height: 30px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid #d6d3d1;
+  background-color: #fff;
+  color: #1c1917;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.chip-subcategoria:hover {
+  border-color: var(--cor-verde-escuro);
+}
+
+.chip-subcategoria.arquivada {
+  background-color: #f5f5f4;
+  color: #78716c;
+  text-decoration: line-through;
+}

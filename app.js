@@ -401,6 +401,19 @@
       );
     }
 
+    // Subcategorias arquivadas (e os produtos delas) também saem da vitrine
+    const subsArquivadasPorCategoria = new Map(
+      estado.categorias
+        .filter((c) => Array.isArray(c.subcategorias_arquivadas) && c.subcategorias_arquivadas.length > 0)
+        .map((c) => [String(c.id), new Set(c.subcategorias_arquivadas)])
+    );
+    if (subsArquivadasPorCategoria.size > 0) {
+      estado.produtos = estado.produtos.filter((p) => {
+        const arquivadas = subsArquivadasPorCategoria.get(String(p.categoria_id));
+        return !arquivadas || !arquivadas.has(String(p.subcategoria || "").trim());
+      });
+    }
+
     renderizarCategorias();
     renderizarVitrine();
   }
@@ -458,15 +471,18 @@
 
   function obterSubcategoriasDaCategoria(cat) {
     if (!cat) return [];
+    const arquivadas = Array.isArray(cat.subcategorias_arquivadas) ? cat.subcategorias_arquivadas : [];
     if (Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0) {
-      return cat.subcategorias;
+      return cat.subcategorias.filter((s) => !arquivadas.includes(s));
     }
     const padrao = SUBCATEGORIAS_PADRAO_POR_SLUG[cat.slug] || [];
     // Adiciona eventuais subcategorias cadastradas nos produtos dessa categoria
     const extrasProdutos = estado.produtos
       .filter((p) => String(p.categoria_id) === String(cat.id) && p.subcategoria)
       .map((p) => String(p.subcategoria).trim());
-    return Array.from(new Set([...padrao, ...extrasProdutos])).filter(Boolean);
+    return Array.from(new Set([...padrao, ...extrasProdutos]))
+      .filter(Boolean)
+      .filter((s) => !arquivadas.includes(s));
   }
 
   function renderizarCategorias() {

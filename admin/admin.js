@@ -1380,11 +1380,30 @@
         : (CATEGORIAS_ORGANIZADAS_PADRAO.find((p) => p.slug === cat.slug)?.subcategorias || []);
 
       if (subs.length > 0) {
-        const subTexto = document.createElement("div");
-        subTexto.style.fontSize = "0.78rem";
-        subTexto.style.color = "#57534e";
-        subTexto.textContent = "Subcategorias: " + subs.join(" • ");
-        divInfo.appendChild(subTexto);
+        // Cada subcategoria vira um botão: clique para arquivar ou desarquivar
+        const arquivadas = Array.isArray(cat.subcategorias_arquivadas)
+          ? cat.subcategorias_arquivadas
+          : [];
+        const subTitulo = document.createElement("div");
+        subTitulo.style.cssText = "font-size: 0.78rem; color: #57534e; margin-top: 6px;";
+        subTitulo.textContent = "Subcategorias (toque para arquivar/desarquivar):";
+        divInfo.appendChild(subTitulo);
+
+        const subLista = document.createElement("div");
+        subLista.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;";
+        subs.forEach((sub) => {
+          const estaArquivada = arquivadas.includes(sub);
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip-subcategoria" + (estaArquivada ? " arquivada" : "");
+          chip.textContent = estaArquivada ? `📦 ${sub}` : sub;
+          chip.title = estaArquivada
+            ? "Arquivada (oculta na vitrine). Clique para desarquivar."
+            : "Clique para arquivar (ocultar da vitrine sem apagar).";
+          chip.addEventListener("click", () => alternarArquivamentoSubcategoria(cat, sub));
+          subLista.appendChild(chip);
+        });
+        divInfo.appendChild(subLista);
       }
 
       const btnDel = document.createElement("button");
@@ -1415,6 +1434,48 @@
       linha.appendChild(botoes);
       container.appendChild(linha);
     });
+  }
+
+  async function alternarArquivamentoSubcategoria(cat, sub) {
+    const atuais = Array.isArray(cat.subcategorias_arquivadas) ? cat.subcategorias_arquivadas : [];
+    const arquivar = !atuais.includes(sub);
+    const qtdProdutos = estado.produtos.filter(
+      (p) => String(p.categoria_id) === String(cat.id) && String(p.subcategoria || "").trim() === sub
+    ).length;
+
+    if (
+      arquivar &&
+      qtdProdutos > 0 &&
+      !window.confirm(
+        `A subcategoria "${sub}" tem ${qtdProdutos} ${
+          qtdProdutos === 1 ? "produto" : "produtos"
+        }. Ao arquivar, eles também deixam de aparecer na vitrine (nada é apagado). Continuar?`
+      )
+    ) {
+      return;
+    }
+
+    const novas = arquivar ? [...atuais, sub] : atuais.filter((s) => s !== sub);
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ subcategorias_arquivadas: novas })
+          .eq("id", cat.id);
+        if (error) throw error;
+      }
+      cat.subcategorias_arquivadas = novas;
+      renderizarListaCategoriasModal();
+      mostrarToast(
+        arquivar
+          ? `Subcategoria "${sub}" arquivada. Ela não aparece mais na vitrine.`
+          : `Subcategoria "${sub}" voltou para a vitrine.`
+      );
+    } catch (erro) {
+      console.error("Erro ao arquivar subcategoria:", erro);
+      mostrarToast("Não foi possível arquivar. Verifique se o SQL de atualização foi executado no Supabase.");
+    }
   }
 
   async function alternarArquivamentoCategoria(cat, qtdProdutos) {
