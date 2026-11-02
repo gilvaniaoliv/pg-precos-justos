@@ -1393,3 +1393,40 @@ a {
   color: var(--cor-verde-escuro);
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+/* Modal "Baixar o App" */
+.instalar-app-corpo p {
+  font-size: 0.9rem;
+  color: var(--cor-texto-principal);
+  margin-bottom: 12px;
+}
+
+.instalar-app-corpo h3 {
+  font-size: 0.95rem;
+  margin: 14px 0 6px;
+  color: var(--cor-verde-escuro);
+}
+
+.instalar-app-corpo ol {
+  padding-left: 20px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.instalar-destaque {
+  padding: 12px;
+  border-radius: 10px;
+  background-color: #ecfdf3;
+}
+
+.btn-instalar-agora {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: var(--raio-botao);
+  background-color: var(--cor-verde-escuro);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}

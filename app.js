@@ -1539,8 +1539,99 @@
     });
   }
 
+  // ==========================================================================
+  // APLICATIVO (PWA): INSTALAR NO CELULAR E NO COMPUTADOR
+  // ==========================================================================
+
+  let eventoInstalacaoApp = null;
+
+  function appJaEstaInstalado() {
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true
+    );
+  }
+
+  function atualizarModalInstalarApp() {
+    const jaInstalado = appJaEstaInstalado();
+    const elJa = document.getElementById("instalarJaInstalado");
+    const elAuto = document.getElementById("instalarAutomatico");
+    const elManual = document.getElementById("instalarManual");
+    if (elJa) elJa.style.display = jaInstalado ? "block" : "none";
+    if (elAuto) elAuto.style.display = !jaInstalado && eventoInstalacaoApp ? "block" : "none";
+    if (elManual) elManual.style.display = jaInstalado || eventoInstalacaoApp ? "none" : "block";
+  }
+
+  function abrirModalInstalarApp() {
+    const modal = document.getElementById("modalInstalarApp");
+    if (!modal) return;
+    atualizarModalInstalarApp();
+    modal.classList.add("aberto");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function fecharModalInstalarApp() {
+    const modal = document.getElementById("modalInstalarApp");
+    if (!modal) return;
+    modal.classList.remove("aberto");
+    modal.setAttribute("aria-hidden", "true");
+    if (window.location.hash === "#instalar") {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }
+
+  function configurarInstalacaoApp() {
+    // Chrome/Edge/Android avisam quando o site pode ser instalado com um toque
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      eventoInstalacaoApp = e;
+      atualizarModalInstalarApp();
+    });
+
+    window.addEventListener("appinstalled", () => {
+      eventoInstalacaoApp = null;
+      atualizarModalInstalarApp();
+      mostrarToast("App instalado! Procure o ícone P&G Preços na sua tela inicial.");
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch((erro) => {
+        console.warn("Service worker não registrado:", erro);
+      });
+    }
+
+    document.querySelectorAll(".link-instalar-app").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("menuNavegacao")?.classList.remove("aberto");
+        abrirModalInstalarApp();
+      });
+    });
+
+    document.getElementById("btnFecharModalInstalar")?.addEventListener("click", fecharModalInstalarApp);
+    const modal = document.getElementById("modalInstalarApp");
+    modal?.addEventListener("click", (e) => {
+      if (e.target === modal) fecharModalInstalarApp();
+    });
+
+    document.getElementById("btnInstalarAgora")?.addEventListener("click", async () => {
+      if (!eventoInstalacaoApp) return;
+      eventoInstalacaoApp.prompt();
+      await eventoInstalacaoApp.userChoice;
+      eventoInstalacaoApp = null;
+      atualizarModalInstalarApp();
+    });
+
+    // Link direto para divulgar: .../#instalar abre as instruções
+    if (window.location.hash === "#instalar") abrirModalInstalarApp();
+    window.addEventListener("hashchange", () => {
+      if (window.location.hash === "#instalar") abrirModalInstalarApp();
+    });
+  }
+
   // Inicialização
   document.addEventListener("DOMContentLoaded", () => {
+    configurarInstalacaoApp();
     ativarBotoesMostrarSenha();
     aplicarDadosConfigNaPagina();
     configurarEventosInterface();

@@ -10,6 +10,10 @@
   />
   <meta name="theme-color" content="#11382a" />
   <link rel="icon" type="image/png" href="img/logo-quadrada.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="P&amp;G Preços" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -73,6 +77,7 @@
           <li><a href="#comoComprar" class="link-menu">Como Comprar</a></li>
           <li><a href="#perguntasFrequentes" class="link-menu">Dúvidas</a></li>
           <li><a href="#politicasLoja" class="link-menu">Políticas</a></li>
+          <li><a href="#instalar" class="link-menu link-instalar-app">📲 Baixar App</a></li>
         </ul>
       </nav>
     </div>
@@ -238,6 +243,20 @@
           </details>
 
           <details class="faq-item">
+            <summary>Vocês emitem nota fiscal?</summary>
+            <div class="faq-resposta">
+              Os envios seguem com <strong>declaração de conteúdo</strong>. Se você precisar de nota fiscal, é só pedir pelo nosso WhatsApp informando <strong>nome completo, CPF e endereço</strong> que emitimos para você.
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Tem aplicativo da loja?</summary>
+            <div class="faq-resposta">
+              Tem, e é gratuito! Ele funciona no celular (Android e iPhone) e no computador, sem precisar de loja de aplicativos. <a href="#instalar" class="link-instalar-app">Clique aqui para instalar</a>.
+            </div>
+          </details>
+
+          <details class="faq-item">
             <summary>Quais são as formas de pagamento aceitas?</summary>
             <div class="faq-resposta">
               Aceitamos pagamento via <strong>Pix</strong> e <strong>Cartão</strong>. Após enviar sua lista pelo WhatsApp e definirmos a modalidade de entrega ou retirada, combinamos a forma de pagamento de sua preferência na própria conversa.
@@ -267,6 +286,9 @@
             <h3>Entrega e Retirada</h3>
             <p>
               Disponibilizamos entregas locais (consulte condições para a sua região pelo WhatsApp) e opção de retirada com horário previamente agendado.
+            </p>
+            <p>
+              Os envios seguem com declaração de conteúdo. Precisa de nota fiscal? Peça pelo WhatsApp com nome completo, CPF e endereço.
             </p>
           </article>
 
@@ -316,6 +338,7 @@
             <li><a href="#secaoCatalogo">Catálogo de Produtos</a></li>
             <li><a href="#comoComprar">Como Comprar</a></li>
             <li><a href="#politicasLoja">Políticas da Loja</a></li>
+            <li><a href="#instalar" class="link-instalar-app">📲 Baixar o App</a></li>
           </ul>
         </div>
       </div>
@@ -362,6 +385,55 @@
   <!-- ========================================================================
        MODAL: CONTA DO CLIENTE (ENTRAR / CADASTRAR)
        ======================================================================== -->
+  <!-- ========================================================================
+       MODAL: INSTALAR O APLICATIVO (PWA)
+       ======================================================================== -->
+  <div id="modalInstalarApp" class="modal-cliente-overlay" aria-hidden="true">
+    <div class="modal-cliente-caixa" role="dialog" aria-labelledby="tituloModalInstalar">
+      <div class="modal-cliente-topo">
+        <h2 id="tituloModalInstalar">📲 Baixar o App</h2>
+        <button type="button" id="btnFecharModalInstalar" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-cliente-corpo instalar-app-corpo">
+        <p id="instalarJaInstalado" class="instalar-destaque" style="display: none;">
+          ✅ O app já está instalado neste aparelho. Procure o ícone <strong>P&amp;G Preços</strong> na tela inicial.
+        </p>
+
+        <div id="instalarAutomatico" style="display: none;">
+          <p>Instale grátis em um toque. O app fica na tela inicial, como qualquer outro aplicativo.</p>
+          <button type="button" id="btnInstalarAgora" class="btn-instalar-agora">
+            📲 Instalar agora
+          </button>
+        </div>
+
+        <div id="instalarManual">
+          <p>É grátis e não precisa de loja de aplicativos. Veja como instalar no seu aparelho:</p>
+
+          <h3>🤖 Android (Chrome)</h3>
+          <ol>
+            <li>Toque nos <strong>três pontinhos ⋮</strong> no canto de cima.</li>
+            <li>Toque em <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+          </ol>
+
+          <h3>🍎 iPhone (Safari)</h3>
+          <ol>
+            <li>Toque no botão <strong>Compartilhar</strong> (quadrado com seta ⬆️).</li>
+            <li>Toque em <strong>Adicionar à Tela de Início</strong> e depois em <strong>Adicionar</strong>.</li>
+          </ol>
+
+          <h3>💻 Computador (Chrome ou Edge)</h3>
+          <ol>
+            <li>Clique no ícone de <strong>instalar</strong> (monitor com seta) no fim da barra de endereço.</li>
+            <li>Ou abra o menu <strong>⋮</strong> e clique em <strong>Instalar P&amp;G Preços Justos</strong>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="modalContaCliente" class="modal-cliente-overlay" aria-hidden="true">
     <div class="modal-cliente-caixa" role="dialog" aria-labelledby="tituloModalCliente">
       <div class="modal-cliente-topo">
