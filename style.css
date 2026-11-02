@@ -119,10 +119,10 @@ a {
 }
 
 .marca-logo-img {
-  height: 46px;
+  height: 54px;
   width: auto;
   background-color: #ffffff;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
   object-fit: contain;
