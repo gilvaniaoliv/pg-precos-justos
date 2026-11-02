@@ -329,7 +329,127 @@ CREATE POLICY "Admin exclui fotos"
     USING (bucket_id = 'produtos-fotos');
 
 -- ============================================================================
--- 8. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (CÔMODOS, MASCULINO/FEMININO, ETC.)
+-- 8. TABELA E FUNÇÕES SEGURAS DE CADASTRO DE CLIENTES DA VITRINE
+-- ============================================================================
+-- Observação de segurança: Os clientes da vitrine ficam na tabela 'public.clientes'
+-- com senha criptografada (bcrypt via pgcrypto), mantendo o Supabase Auth
+-- (role 'authenticated') 100% EXCLUSIVO para você e seu sócio no painel /admin!
+
+CREATE TABLE IF NOT EXISTS public.clientes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome TEXT NOT NULL CHECK (char_length(trim(nome)) >= 2 AND char_length(nome) <= 120),
+    email TEXT NOT NULL UNIQUE CHECK (position('@' in email) > 1),
+    whatsapp TEXT NOT NULL DEFAULT '',
+    endereco TEXT NOT NULL DEFAULT '',
+    senha_hash TEXT NOT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clientes FORCE ROW LEVEL SECURITY;
+
+-- Visitantes anônimos NÃO podem ler a tabela de clientes diretamente
+REVOKE ALL ON TABLE public.clientes FROM anon;
+GRANT SELECT ON TABLE public.clientes TO authenticated;
+
+DROP POLICY IF EXISTS "Admin visualiza clientes" ON public.clientes;
+CREATE POLICY "Admin visualiza clientes"
+    ON public.clientes
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Função segura para o cliente se cadastrar na vitrine
+CREATE OR REPLACE FUNCTION public.cadastrar_cliente_loja(
+    p_nome TEXT,
+    p_email TEXT,
+    p_whatsapp TEXT,
+    p_endereco TEXT,
+    p_senha TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_email_limpo TEXT;
+    v_cliente_id UUID;
+BEGIN
+    v_email_limpo := lower(trim(COALESCE(p_email, '')));
+
+    IF char_length(trim(COALESCE(p_nome, ''))) < 2 THEN
+        RAISE EXCEPTION 'Informe seu nome completo.';
+    END IF;
+
+    IF position('@' in v_email_limpo) <= 1 THEN
+        RAISE EXCEPTION 'Informe um e-mail válido.';
+    END IF;
+
+    IF char_length(COALESCE(p_senha, '')) < 6 THEN
+        RAISE EXCEPTION 'A senha deve ter pelo menos 6 caracteres.';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM public.clientes WHERE email = v_email_limpo) THEN
+        RAISE EXCEPTION 'Este e-mail já está cadastrado. Faça login na aba Entrar.';
+    END IF;
+
+    INSERT INTO public.clientes (nome, email, whatsapp, endereco, senha_hash)
+    VALUES (
+        trim(p_nome),
+        v_email_limpo,
+        trim(COALESCE(p_whatsapp, '')),
+        trim(COALESCE(p_endereco, '')),
+        crypt(p_senha, gen_salt('bf'))
+    )
+    RETURNING id INTO v_cliente_id;
+
+    RETURN jsonb_build_object(
+        'id', v_cliente_id,
+        'nome', trim(p_nome),
+        'email', v_email_limpo,
+        'whatsapp', trim(COALESCE(p_whatsapp, '')),
+        'endereco', trim(COALESCE(p_endereco, ''))
+    );
+END;
+$$;
+
+-- Função segura para o cliente fazer login na vitrine
+CREATE OR REPLACE FUNCTION public.entrar_cliente_loja(
+    p_email TEXT,
+    p_senha TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_cliente public.clientes%ROWTYPE;
+BEGIN
+    SELECT * INTO v_cliente
+    FROM public.clientes
+    WHERE email = lower(trim(COALESCE(p_email, '')));
+
+    IF NOT FOUND OR v_cliente.senha_hash <> crypt(COALESCE(p_senha, ''), v_cliente.senha_hash) THEN
+        RAISE EXCEPTION 'E-mail ou senha incorretos.';
+    END IF;
+
+    RETURN jsonb_build_object(
+        'id', v_cliente.id,
+        'nome', v_cliente.nome,
+        'email', v_cliente.email,
+        'whatsapp', v_cliente.whatsapp,
+        'endereco', v_cliente.endereco
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.cadastrar_cliente_loja(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.entrar_cliente_loja(TEXT, TEXT) TO anon, authenticated;
+
+-- ============================================================================
+-- 9. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (CÔMODOS, MASCULINO/FEMININO, ETC.)
 -- ============================================================================
 -- Remove categorias antigas sem produtos vinculados para deixar a nova estrutura limpa
 DELETE FROM public.categorias

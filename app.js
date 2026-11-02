@@ -16,6 +16,9 @@
 
   const CFG = window.LOJA_CONFIG || {};
   const CHAVE_STORAGE_CARRINHO = "pg_precos_justos_carrinho_v1";
+  const CHAVE_STORAGE_CLIENTE = "pg_precos_justos_cliente_logado_v1";
+  const CHAVE_STORAGE_CONTAS_LOCAIS = "pg_precos_justos_contas_clientes_v1";
+  let supabaseInstancia = null;
 
   // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, etc.)
   const SUBCATEGORIAS_PADRAO_POR_SLUG = {
@@ -40,6 +43,7 @@
     subcategoriaSelecionada: "todas",
     termoBusca: "",
     carrinho: carregarCarrinhoSalvo(),
+    clienteLogado: carregarClienteSalvo(),
     modoDemo: false
   };
 
@@ -339,6 +343,7 @@
         CFG.SUPABASE_URL,
         CFG.SUPABASE_ANON_KEY
       );
+      supabaseInstancia = cliente;
 
       // Visitantes consultam APENAS 'categorias' e a view pública 'produtos_publicos'
       const [resCategorias, resProdutos] = await Promise.all([
@@ -775,17 +780,34 @@
   // 4. PEDIDO DIRETO E CARRINHO SIMPLES COM MENSAGEM ÚNICA PARA O WHATSAPP
   // ==========================================================================
 
+  function montarBlocoIdentificacaoCliente() {
+    if (!estado.clienteLogado || !estado.clienteLogado.nome) return [];
+    const linhas = [
+      ``,
+      `*Dados do Cliente:*`,
+      `• Nome: ${estado.clienteLogado.nome}`
+    ];
+    if (estado.clienteLogado.whatsapp) {
+      linhas.push(`• WhatsApp: ${estado.clienteLogado.whatsapp}`);
+    }
+    if (estado.clienteLogado.endereco) {
+      linhas.push(`• Endereço/Bairro: ${estado.clienteLogado.endereco}`);
+    }
+    return linhas;
+  }
+
   function pedirProdutoDiretoWhatsapp(produto) {
     const numero = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
     const nomeLoja = CFG.NOME_LOJA || "P&G Preços Justos";
     const precoFormatado = formatarMoeda(produto.preco_venda);
 
     const mensagem = [
-      `Olá, *${nomeLoja}*! 👋`,
+      `Olá, *${nomeLoja}*!`,
       `Gostaria de pedir este produto do catálogo:`,
       ``,
       `• *${produto.nome}*`,
       `  Valor: *${precoFormatado}*`,
+      ...montarBlocoIdentificacaoCliente(),
       ``,
       `Podemos confirmar a disponibilidade e o pagamento via Pix?`
     ].join("\n");
@@ -803,6 +825,277 @@
     } catch (_) {
       return [];
     }
+  }
+
+  function carregarClienteSalvo() {
+    try {
+      const bruto = localStorage.getItem(CHAVE_STORAGE_CLIENTE);
+      if (!bruto) return null;
+      const lido = JSON.parse(bruto);
+      return lido && lido.email ? lido : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function salvarClienteLogado(cliente) {
+    estado.clienteLogado = cliente;
+    try {
+      if (cliente) {
+        localStorage.setItem(CHAVE_STORAGE_CLIENTE, JSON.stringify(cliente));
+      } else {
+        localStorage.removeItem(CHAVE_STORAGE_CLIENTE);
+      }
+    } catch (_) {
+      // Ignora erro de quota
+    }
+    atualizarInterfaceContaCliente();
+  }
+
+  function atualizarInterfaceContaCliente() {
+    const elTextoTopo = document.getElementById("textoBtnContaTopo");
+    const abas = document.getElementById("abasContaCliente");
+    const formLogin = document.getElementById("formLoginCliente");
+    const formCadastro = document.getElementById("formCadastroCliente");
+    const painelLogado = document.getElementById("painelClienteLogado");
+
+    if (estado.clienteLogado && estado.clienteLogado.nome) {
+      const primeiroNome = String(estado.clienteLogado.nome).trim().split(" ")[0];
+      if (elTextoTopo) elTextoTopo.textContent = `Olá, ${primeiroNome}`;
+      if (abas) abas.style.display = "none";
+      if (formLogin) formLogin.style.display = "none";
+      if (formCadastro) formCadastro.style.display = "none";
+      if (painelLogado) {
+        painelLogado.style.display = "block";
+        document.getElementById("perfilClienteNome").textContent =
+          estado.clienteLogado.nome || "";
+        document.getElementById("perfilClienteEmail").textContent =
+          estado.clienteLogado.email || "";
+        document.getElementById("perfilClienteWhatsapp").textContent =
+          estado.clienteLogado.whatsapp || "Não informado";
+        document.getElementById("perfilClienteEndereco").textContent =
+          estado.clienteLogado.endereco || "Não informado";
+      }
+    } else {
+      if (elTextoTopo) elTextoTopo.textContent = "Entrar / Cadastrar";
+      if (abas) abas.style.display = "grid";
+      if (painelLogado) painelLogado.style.display = "none";
+    }
+  }
+
+  function exibirFeedbackCliente(mensagem, tipo = "erro") {
+    const el = document.getElementById("feedbackContaCliente");
+    if (!el) return;
+    if (!mensagem) {
+      el.className = "msg-feedback-cliente";
+      el.textContent = "";
+      return;
+    }
+    el.className = `msg-feedback-cliente ${tipo}`;
+    el.textContent = mensagem;
+  }
+
+  function alternarAbaModalCliente(aba) {
+    exibirFeedbackCliente("");
+    const btnEntrar = document.getElementById("abaBtnEntrar");
+    const btnCadastrar = document.getElementById("abaBtnCadastrar");
+    const formLogin = document.getElementById("formLoginCliente");
+    const formCadastro = document.getElementById("formCadastroCliente");
+
+    if (aba === "cadastrar") {
+      btnEntrar?.classList.remove("ativa");
+      btnCadastrar?.classList.add("ativa");
+      if (formLogin) formLogin.style.display = "none";
+      if (formCadastro) formCadastro.style.display = "block";
+    } else {
+      btnCadastrar?.classList.remove("ativa");
+      btnEntrar?.classList.add("ativa");
+      if (formCadastro) formCadastro.style.display = "none";
+      if (formLogin) formLogin.style.display = "block";
+    }
+  }
+
+  async function cadastrarClienteSubmit(evento) {
+    evento.preventDefault();
+    exibirFeedbackCliente("");
+
+    const nome = String(document.getElementById("cadClienteNome")?.value || "").trim();
+    const email = String(document.getElementById("cadClienteEmail")?.value || "")
+      .trim()
+      .toLowerCase();
+    const whatsapp = String(document.getElementById("cadClienteWhatsapp")?.value || "").trim();
+    const endereco = String(document.getElementById("cadClienteEndereco")?.value || "").trim();
+    const senha = String(document.getElementById("cadClienteSenha")?.value || "");
+    const btn = document.getElementById("btnSubmitCadastroCliente");
+
+    if (nome.length < 2) {
+      exibirFeedbackCliente("Por favor, informe seu nome completo.");
+      return;
+    }
+    if (!email.includes("@")) {
+      exibirFeedbackCliente("Por favor, informe um e-mail válido.");
+      return;
+    }
+    if (senha.length < 6) {
+      exibirFeedbackCliente("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Criando conta...";
+      }
+
+      let dadosCliente = null;
+
+      if (supabaseInstancia) {
+        const { data, error } = await supabaseInstancia.rpc("cadastrar_cliente_loja", {
+          p_nome: nome,
+          p_email: email,
+          p_whatsapp: whatsapp,
+          p_endereco: endereco,
+          p_senha: senha
+        });
+
+        if (error) {
+          // Se a função RPC ainda não foi rodada no SQL do Supabase, usa armazenamento local seguro
+          if (
+            String(error.message || "").includes("cadastrar_cliente_loja") ||
+            String(error.code || "") === "PGRST202"
+          ) {
+            dadosCliente = cadastrarClienteLocalFallback({
+              nome,
+              email,
+              whatsapp,
+              endereco,
+              senha
+            });
+          } else {
+            throw new Error(error.message);
+          }
+        } else {
+          dadosCliente = data;
+        }
+      } else {
+        dadosCliente = cadastrarClienteLocalFallback({
+          nome,
+          email,
+          whatsapp,
+          endereco,
+          senha
+        });
+      }
+
+      salvarClienteLogado(dadosCliente);
+      mostrarToast(`Bem-vindo(a), ${nome.split(" ")[0]}! Conta criada com sucesso.`);
+      document.getElementById("formCadastroCliente")?.reset();
+    } catch (erro) {
+      exibirFeedbackCliente(erro.message || "Não foi possível concluir o cadastro.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Criar Minha Conta";
+      }
+    }
+  }
+
+  async function loginClienteSubmit(evento) {
+    evento.preventDefault();
+    exibirFeedbackCliente("");
+
+    const email = String(document.getElementById("loginClienteEmail")?.value || "")
+      .trim()
+      .toLowerCase();
+    const senha = String(document.getElementById("loginClienteSenha")?.value || "");
+    const btn = document.getElementById("btnSubmitLoginCliente");
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Entrando...";
+      }
+
+      let dadosCliente = null;
+
+      if (supabaseInstancia) {
+        const { data, error } = await supabaseInstancia.rpc("entrar_cliente_loja", {
+          p_email: email,
+          p_senha: senha
+        });
+
+        if (error) {
+          if (
+            String(error.message || "").includes("entrar_cliente_loja") ||
+            String(error.code || "") === "PGRST202"
+          ) {
+            dadosCliente = loginClienteLocalFallback(email, senha);
+          } else {
+            throw new Error(error.message);
+          }
+        } else {
+          dadosCliente = data;
+        }
+      } else {
+        dadosCliente = loginClienteLocalFallback(email, senha);
+      }
+
+      salvarClienteLogado(dadosCliente);
+      mostrarToast(`Olá, ${dadosCliente.nome.split(" ")[0]}!`);
+      document.getElementById("formLoginCliente")?.reset();
+    } catch (erro) {
+      exibirFeedbackCliente(erro.message || "E-mail ou senha incorretos.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Entrar na Minha Conta";
+      }
+    }
+  }
+
+  function cadastrarClienteLocalFallback({ nome, email, whatsapp, endereco, senha }) {
+    let lista = [];
+    try {
+      lista = JSON.parse(localStorage.getItem(CHAVE_STORAGE_CONTAS_LOCAIS) || "[]");
+    } catch (_) {
+      lista = [];
+    }
+    if (lista.some((c) => c.email === email)) {
+      throw new Error("Este e-mail já está cadastrado. Acesse a aba Entrar.");
+    }
+    const novo = {
+      id: "cli-" + Date.now(),
+      nome,
+      email,
+      whatsapp,
+      endereco,
+      senha
+    };
+    lista.push(novo);
+    try {
+      localStorage.setItem(CHAVE_STORAGE_CONTAS_LOCAIS, JSON.stringify(lista));
+    } catch (_) {}
+    return { id: novo.id, nome, email, whatsapp, endereco };
+  }
+
+  function loginClienteLocalFallback(email, senha) {
+    let lista = [];
+    try {
+      lista = JSON.parse(localStorage.getItem(CHAVE_STORAGE_CONTAS_LOCAIS) || "[]");
+    } catch (_) {
+      lista = [];
+    }
+    const encontrado = lista.find((c) => c.email === email && c.senha === senha);
+    if (!encontrado) {
+      throw new Error("E-mail ou senha incorretos.");
+    }
+    return {
+      id: encontrado.id,
+      nome: encontrado.nome,
+      email: encontrado.email,
+      whatsapp: encontrado.whatsapp,
+      endereco: encontrado.endereco
+    };
   }
 
   function salvarCarrinho() {
@@ -971,12 +1264,13 @@
     });
 
     const mensagem = [
-      `Olá, *${nomeLoja}*! 👋`,
+      `Olá, *${nomeLoja}*!`,
       `Montei meu pedido pelo catálogo online:`,
       ``,
       ...linhasItens,
       ``,
       `*Total do pedido: ${formatarMoeda(total)}*`,
+      ...montarBlocoIdentificacaoCliente(),
       ``,
       `Como podemos combinar a entrega/retirada e o pagamento via Pix?`
     ].join("\n");
@@ -1073,6 +1367,55 @@
 
     if (btnFinalizar) btnFinalizar.addEventListener("click", enviarCarrinhoWhatsapp);
     if (btnLimpar) btnLimpar.addEventListener("click", limparCarrinho);
+
+    // Modal de Conta do Cliente (Entrar / Cadastrar)
+    const modalCliente = document.getElementById("modalContaCliente");
+    const btnAbrirConta = document.getElementById("btnAbrirContaCliente");
+    const btnFecharCliente = document.getElementById("btnFecharModalCliente");
+    const abaEntrar = document.getElementById("abaBtnEntrar");
+    const abaCadastrar = document.getElementById("abaBtnCadastrar");
+    const linkIrCadastro = document.getElementById("linkIrParaCadastro");
+    const formLoginCli = document.getElementById("formLoginCliente");
+    const formCadCli = document.getElementById("formCadastroCliente");
+    const btnSairCli = document.getElementById("btnSairContaCliente");
+
+    function abrirModalConta(abaInicial = "entrar") {
+      if (!modalCliente) return;
+      exibirFeedbackCliente("");
+      atualizarInterfaceContaCliente();
+      if (!estado.clienteLogado) {
+        alternarAbaModalCliente(abaInicial);
+      }
+      modalCliente.classList.add("aberto");
+      modalCliente.setAttribute("aria-hidden", "false");
+    }
+
+    function fecharModalConta() {
+      if (!modalCliente) return;
+      modalCliente.classList.remove("aberto");
+      modalCliente.setAttribute("aria-hidden", "true");
+    }
+
+    btnAbrirConta?.addEventListener("click", () => abrirModalConta("entrar"));
+    btnFecharCliente?.addEventListener("click", fecharModalConta);
+    modalCliente?.addEventListener("click", (e) => {
+      if (e.target === modalCliente) fecharModalConta();
+    });
+
+    abaEntrar?.addEventListener("click", () => alternarAbaModalCliente("entrar"));
+    abaCadastrar?.addEventListener("click", () => alternarAbaModalCliente("cadastrar"));
+    linkIrCadastro?.addEventListener("click", () => alternarAbaModalCliente("cadastrar"));
+    formLoginCli?.addEventListener("submit", loginClienteSubmit);
+    formCadCli?.addEventListener("submit", cadastrarClienteSubmit);
+    btnSairCli?.addEventListener("click", () => {
+      salvarClienteLogado(null);
+      alternarAbaModalCliente("entrar");
+      mostrarToast("Você saiu da sua conta.");
+    });
+
+    if (window.location.hash === "#cadastro") {
+      abrirModalConta("cadastrar");
+    }
   }
 
   // Inicialização
@@ -1080,6 +1423,7 @@
     aplicarDadosConfigNaPagina();
     configurarEventosInterface();
     atualizarInterfaceCarrinho();
+    atualizarInterfaceContaCliente();
     carregarDadosVitrine();
   });
 })();

@@ -30,6 +30,15 @@
         <div class="acoes-topo">
           <button
             type="button"
+            id="btnAbrirContaCliente"
+            class="btn-conta-topo"
+            aria-label="Entrar ou criar conta de cliente"
+          >
+            <span id="textoBtnContaTopo">Entrar / Cadastrar</span>
+          </button>
+
+          <button
+            type="button"
             id="btnAbrirCarrinho"
             class="btn-carrinho-topo"
             aria-label="Abrir lista de pedido"
@@ -342,6 +351,115 @@
         </button>
       </div>
     </aside>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: CONTA DO CLIENTE (ENTRAR / CADASTRAR)
+       ======================================================================== -->
+  <div id="modalContaCliente" class="modal-cliente-overlay" aria-hidden="true">
+    <div class="modal-cliente-caixa" role="dialog" aria-labelledby="tituloModalCliente">
+      <div class="modal-cliente-topo">
+        <h2 id="tituloModalCliente">Minha Conta</h2>
+        <button type="button" id="btnFecharModalCliente" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <!-- Abas Entrar / Cadastrar (visíveis quando não está logado) -->
+      <div id="abasContaCliente" class="abas-cliente">
+        <button type="button" id="abaBtnEntrar" class="aba-cliente-btn ativa">
+          Entrar
+        </button>
+        <button type="button" id="abaBtnCadastrar" class="aba-cliente-btn">
+          Cadastrar
+        </button>
+      </div>
+
+      <div class="modal-cliente-corpo">
+        <div id="feedbackContaCliente" class="msg-feedback-cliente" role="alert"></div>
+
+        <!-- 1. Formulário de Login do Cliente -->
+        <form id="formLoginCliente" autocomplete="on">
+          <div class="campo-cliente">
+            <label for="loginClienteEmail">E-mail</label>
+            <input type="email" id="loginClienteEmail" required placeholder="seuemail@exemplo.com" autocomplete="email" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="loginClienteSenha">Senha</label>
+            <input type="password" id="loginClienteSenha" required placeholder="••••••••" autocomplete="current-password" />
+          </div>
+
+          <button type="submit" id="btnSubmitLoginCliente" class="btn-submit-cliente">
+            Entrar na Minha Conta
+          </button>
+
+          <p style="margin-top: 14px; font-size: 0.82rem; color: #606663; text-align: center;">
+            Ainda não tem conta?
+            <button
+              type="button"
+              id="linkIrParaCadastro"
+              style="background: none; border: none; color: #11382a; font-weight: 700; text-decoration: underline; cursor: pointer;"
+            >
+              Cadastre-se gratuitamente
+            </button>
+          </p>
+        </form>
+
+        <!-- 2. Formulário de Cadastro do Cliente -->
+        <form id="formCadastroCliente" style="display: none;" autocomplete="on">
+          <div class="campo-cliente">
+            <label for="cadClienteNome">Nome completo *</label>
+            <input type="text" id="cadClienteNome" required maxlength="120" placeholder="Seu nome completo" autocomplete="name" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="cadClienteEmail">E-mail *</label>
+            <input type="email" id="cadClienteEmail" required maxlength="160" placeholder="seuemail@exemplo.com" autocomplete="email" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="cadClienteWhatsapp">WhatsApp com DDD *</label>
+            <input type="tel" id="cadClienteWhatsapp" required maxlength="25" placeholder="(71) 99999-9999" autocomplete="tel" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="cadClienteEndereco">Bairro / Endereço de entrega (opcional)</label>
+            <input type="text" id="cadClienteEndereco" maxlength="200" placeholder="Ex.: Rua X, nº 10, Bairro Y" autocomplete="street-address" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="cadClienteSenha">Criar senha (mínimo de 6 caracteres) *</label>
+            <input type="password" id="cadClienteSenha" required minlength="6" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+
+          <button type="submit" id="btnSubmitCadastroCliente" class="btn-submit-cliente">
+            Criar Minha Conta
+          </button>
+        </form>
+
+        <!-- 3. Painel do Cliente Logado -->
+        <div id="painelClienteLogado" style="display: none;">
+          <p style="font-size: 0.85rem; color: #606663; margin-bottom: 12px;">
+            Seus dados ficam salvos para agilizar seus pedidos pelo WhatsApp:
+          </p>
+          <div style="background: #f7f6f2; border: 1px solid #e6e5e0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.88rem;">
+            <div style="margin-bottom: 6px;"><strong>Nome:</strong> <span id="perfilClienteNome"></span></div>
+            <div style="margin-bottom: 6px;"><strong>E-mail:</strong> <span id="perfilClienteEmail"></span></div>
+            <div style="margin-bottom: 6px;"><strong>WhatsApp:</strong> <span id="perfilClienteWhatsapp"></span></div>
+            <div><strong>Endereço:</strong> <span id="perfilClienteEndereco"></span></div>
+          </div>
+          <button
+            type="button"
+            id="btnSairContaCliente"
+            class="btn-submit-cliente"
+            style="background-color: #606663;"
+          >
+            Sair da Conta
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ========================================================================
