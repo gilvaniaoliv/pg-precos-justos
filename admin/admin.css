@@ -47,13 +47,15 @@
 }
 
 .login-titulo {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.22rem;
+  font-weight: 600;
   color: var(--cor-verde-escuro);
+  letter-spacing: -0.01em;
 }
 
 .login-subtitulo {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
   margin-top: 4px;
 }
@@ -64,8 +66,8 @@
 
 .form-label {
   display: block;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.83rem;
+  font-weight: 500;
   color: var(--cor-texto-principal);
   margin-bottom: 5px;
 }
@@ -108,13 +110,13 @@
 
 .btn-primario-admin {
   width: 100%;
-  min-height: 48px;
+  min-height: 46px;
   border: none;
   border-radius: var(--raio-botao);
   background-color: var(--cor-verde-escuro);
   color: var(--cor-branco);
-  font-weight: 800;
-  font-size: 0.96rem;
+  font-weight: 500;
+  font-size: 0.92rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -133,10 +135,10 @@
   color: var(--cor-branco);
   border: none;
   border-radius: var(--raio-botao);
-  min-height: 46px;
+  min-height: 44px;
   padding: 0 16px;
-  font-weight: 800;
-  font-size: 0.92rem;
+  font-weight: 500;
+  font-size: 0.88rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -151,12 +153,12 @@
 .btn-secundario-admin {
   background-color: var(--cor-branco);
   color: var(--cor-texto-principal);
-  border: 1.5px solid var(--cor-borda);
+  border: 1px solid var(--cor-borda);
   border-radius: var(--raio-botao);
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 14px;
-  font-weight: 700;
-  font-size: 0.88rem;
+  font-weight: 500;
+  font-size: 0.85rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -271,16 +273,16 @@
 }
 
 .resumo-rotulo {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 500;
   color: var(--cor-texto-secundario);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .resumo-valor {
-  font-size: 1.32rem;
-  font-weight: 900;
+  font-size: 1.24rem;
+  font-weight: 600;
   color: var(--cor-verde-escuro);
   margin: 4px 0;
 }

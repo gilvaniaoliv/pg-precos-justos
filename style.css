@@ -60,12 +60,15 @@ html {
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--cor-fundo-pagina);
   color: var(--cor-texto-principal);
-  line-height: 1.55;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
   padding-bottom: 80px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 img {
@@ -148,8 +151,8 @@ a {
 }
 
 .marca-nome {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.02rem;
+  font-weight: 600;
   line-height: 1.2;
   color: var(--cor-branco);
 }
@@ -157,7 +160,7 @@ a {
 .marca-sub {
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.75);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .acoes-topo {
@@ -173,7 +176,7 @@ a {
   border-radius: var(--raio-botao);
   min-height: 40px;
   padding: 0 12px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.84rem;
   display: inline-flex;
   align-items: center;
@@ -194,8 +197,8 @@ a {
   border-radius: var(--raio-botao);
   min-height: 42px;
   padding: 0 14px;
-  font-weight: 600;
-  font-size: 0.88rem;
+  font-weight: 500;
+  font-size: 0.86rem;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -210,8 +213,8 @@ a {
 .contador-carrinho {
   background-color: var(--cor-laranja);
   color: var(--cor-branco);
-  font-weight: 700;
-  font-size: 0.75rem;
+  font-weight: 600;
+  font-size: 0.74rem;
   min-width: 22px;
   height: 22px;
   border-radius: 999px;
@@ -296,24 +299,25 @@ a {
   align-self: flex-start;
   background-color: var(--cor-verde-claro);
   color: var(--cor-verde-escuro);
-  font-weight: 700;
-  font-size: 0.72rem;
+  font-weight: 600;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.9px;
   padding: 4px 10px;
   border-radius: 6px;
 }
 
 .banner-titulo {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: var(--cor-verde-escuro);
-  line-height: 1.28;
-  letter-spacing: -0.02em;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
 }
 
 .banner-subtitulo {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
   max-width: 680px;
 }
@@ -398,8 +402,8 @@ a {
   border: 1px solid var(--cor-borda);
   background-color: var(--cor-branco);
   color: var(--cor-texto-secundario);
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 500;
+  font-size: 0.84rem;
   cursor: pointer;
   transition: var(--transicao-suave);
 }
@@ -438,8 +442,8 @@ a {
   border: 1px solid var(--cor-borda);
   background-color: var(--cor-branco);
   color: var(--cor-texto-secundario);
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 500;
+  font-size: 0.79rem;
   cursor: pointer;
   transition: var(--transicao-suave);
 }
@@ -471,16 +475,16 @@ a {
 }
 
 .titulo-secao {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.12rem;
+  font-weight: 600;
   color: var(--cor-texto-principal);
   letter-spacing: -0.01em;
 }
 
 .subtitulo-contagem {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--cor-texto-secundario);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .grade-produtos {
@@ -543,11 +547,11 @@ a {
 
 .selo {
   display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 600;
   padding: 4px 10px;
   border-radius: 6px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.4px;
 }
 
 .selo-destaque {
@@ -574,24 +578,25 @@ a {
 }
 
 .produto-categoria-tag {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.7px;
   color: var(--cor-texto-secundario);
   margin-bottom: 4px;
 }
 
 .produto-nome {
-  font-size: 1.02rem;
-  font-weight: 700;
+  font-size: 0.98rem;
+  font-weight: 600;
   color: var(--cor-texto-principal);
   margin-bottom: 6px;
-  line-height: 1.35;
+  line-height: 1.38;
 }
 
 .produto-descricao {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
   margin-bottom: 14px;
   flex: 1;
@@ -617,24 +622,25 @@ a {
 }
 
 .preco-venda-valor {
-  font-size: 1.32rem;
-  font-weight: 800;
+  font-size: 1.24rem;
+  font-weight: 600;
   color: var(--cor-verde-escuro);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .selo-economize {
   background-color: var(--cor-verde-claro);
   color: var(--cor-verde-escuro);
-  font-size: 0.74rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
 }
 
 .preco-medio-info {
   margin-top: 4px;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
 }
 
@@ -646,13 +652,13 @@ a {
 }
 
 .btn-pedir-whatsapp {
-  min-height: 44px;
+  min-height: 42px;
   border: none;
   border-radius: var(--raio-botao);
   background-color: var(--cor-verde-escuro);
   color: var(--cor-branco);
-  font-weight: 600;
-  font-size: 0.88rem;
+  font-weight: 500;
+  font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -667,13 +673,13 @@ a {
 }
 
 .btn-adicionar-carrinho {
-  min-height: 44px;
+  min-height: 42px;
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-botao);
   background-color: var(--cor-fundo-pagina);
   color: var(--cor-texto-principal);
-  font-weight: 600;
-  font-size: 0.84rem;
+  font-weight: 500;
+  font-size: 0.82rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -738,8 +744,8 @@ a {
   border-radius: 8px;
   background-color: var(--cor-verde-claro);
   color: var(--cor-verde-escuro);
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 600;
+  font-size: 0.88rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -747,14 +753,15 @@ a {
 }
 
 .passo-titulo {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.94rem;
+  font-weight: 600;
   margin-bottom: 4px;
   color: var(--cor-texto-principal);
 }
 
 .passo-texto {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
 }
 
@@ -775,7 +782,7 @@ a {
 
 .faq-item summary {
   padding: 14px 16px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
   list-style: none;
@@ -792,7 +799,7 @@ a {
 .faq-item summary::after {
   content: "+";
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--cor-texto-secundario);
 }
 
@@ -802,7 +809,8 @@ a {
 
 .faq-resposta {
   padding: 12px 16px 15px;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
   border-top: 1px solid var(--cor-borda);
 }
@@ -823,14 +831,15 @@ a {
 }
 
 .politica-card h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.94rem;
+  font-weight: 600;
   color: var(--cor-verde-escuro);
   margin-bottom: 6px;
 }
 
 .politica-card p {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 400;
   color: var(--cor-texto-secundario);
 }
 
@@ -852,8 +861,8 @@ a {
 }
 
 .rodape-titulo {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--cor-branco);
   margin-bottom: 8px;
   letter-spacing: 0.2px;
