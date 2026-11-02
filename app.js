@@ -18,6 +18,8 @@
   const CHAVE_STORAGE_CARRINHO = "pg_precos_justos_carrinho_v1";
   const CHAVE_STORAGE_CLIENTE = "pg_precos_justos_cliente_logado_v1";
   const CHAVE_STORAGE_CONTAS_LOCAIS = "pg_precos_justos_contas_clientes_v1";
+  const CHAVE_STORAGE_AREA_ENTREGA = "pg_precos_justos_area_entrega_v1";
+  const AREA_FORA_DA_LISTA = "fora";
   let supabaseInstancia = null;
 
   // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, etc.)
@@ -45,6 +47,8 @@
     carrinho: carregarCarrinhoSalvo(),
     clienteLogado: carregarClienteSalvo(),
     acaoPendenteCompra: null,
+    areasEntrega: [],
+    areaEntregaSelecionada: carregarAreaEntregaSalva(),
     modoDemo: false
   };
 
@@ -369,6 +373,22 @@
       console.error("Erro ao carregar dados do Supabase:", erro);
       mostrarToast("Não foi possível carregar os produtos no momento.");
     }
+
+    // Áreas de entrega (carregadas à parte: se a tabela ainda não existir, a loja segue normal)
+    try {
+      const { data, error } = await supabaseInstancia
+        .from("areas_entrega")
+        .select("id, nome, valor, gratis_acima")
+        .eq("ativa", true)
+        .order("ordem", { ascending: true })
+        .order("nome", { ascending: true });
+      if (error) throw error;
+      estado.areasEntrega = data || [];
+    } catch (erro) {
+      console.warn("Áreas de entrega indisponíveis:", erro);
+      estado.areasEntrega = [];
+    }
+    atualizarInterfaceCarrinho();
 
     // Categorias arquivadas no admin (e os produtos delas) não aparecem na vitrine
     const idsArquivadas = new Set(
@@ -1175,6 +1195,118 @@
     };
   }
 
+  function carregarAreaEntregaSalva() {
+    try {
+      return localStorage.getItem(CHAVE_STORAGE_AREA_ENTREGA) || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function salvarAreaEntrega() {
+    try {
+      localStorage.setItem(CHAVE_STORAGE_AREA_ENTREGA, estado.areaEntregaSelecionada || "");
+    } catch (_) {
+      // Ignora erro de quota
+    }
+  }
+
+  function obterAreaEntregaSelecionada() {
+    return (
+      estado.areasEntrega.find((a) => String(a.id) === String(estado.areaEntregaSelecionada)) ||
+      null
+    );
+  }
+
+  /**
+   * Frete da área escolhida: zero quando o pedido atinge o valor de "frete grátis acima de".
+   * Retorna null quando não há área (fora da lista ou nada escolhido).
+   */
+  function calcularFreteArea(area, subtotalProdutos) {
+    if (!area) return null;
+    const limiteGratis = area.gratis_acima;
+    if (limiteGratis !== null && limiteGratis !== undefined && subtotalProdutos >= Number(limiteGratis)) {
+      return 0;
+    }
+    return Number(area.valor) || 0;
+  }
+
+  function renderizarEntregaCarrinho(subtotalProdutos) {
+    const bloco = document.getElementById("blocoEntregaCarrinho");
+    const select = document.getElementById("selectAreaEntrega");
+    const aviso = document.getElementById("avisoAreaEntrega");
+    const linhasFrete = document.getElementById("linhasFreteCarrinho");
+    const avisoPagamento = document.getElementById("carrinhoAvisoPagamento");
+    const exibir = estado.areasEntrega.length > 0 && estado.carrinho.length > 0;
+
+    if (bloco) bloco.style.display = exibir ? "block" : "none";
+    if (linhasFrete) linhasFrete.style.display = exibir ? "block" : "none";
+    if (estado.areasEntrega.length === 0) return null;
+
+    // Se a área salva foi removida no admin, limpa a escolha
+    if (
+      estado.areaEntregaSelecionada &&
+      estado.areaEntregaSelecionada !== AREA_FORA_DA_LISTA &&
+      !obterAreaEntregaSelecionada()
+    ) {
+      estado.areaEntregaSelecionada = "";
+      salvarAreaEntrega();
+    }
+
+    if (select) {
+      select.textContent = "";
+      const opcoes = [{ valor: "", texto: "Selecione seu bairro/região..." }];
+      estado.areasEntrega.forEach((area) => {
+        const frete = calcularFreteArea(area, subtotalProdutos);
+        opcoes.push({
+          valor: String(area.id),
+          texto: `${area.nome} — ${frete === 0 ? "Grátis" : formatarMoeda(frete)}`
+        });
+      });
+      opcoes.push({
+        valor: AREA_FORA_DA_LISTA,
+        texto: "Meu bairro não está na lista (combinar pelo WhatsApp)"
+      });
+      opcoes.forEach((op) => {
+        const opt = document.createElement("option");
+        opt.value = op.valor;
+        opt.textContent = op.texto;
+        select.appendChild(opt);
+      });
+      select.value = estado.areaEntregaSelecionada || "";
+    }
+
+    const area = obterAreaEntregaSelecionada();
+    const frete = calcularFreteArea(area, subtotalProdutos);
+    const elFrete = document.getElementById("carrinhoFreteValor");
+    if (elFrete) {
+      if (frete === null) {
+        elFrete.textContent =
+          estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA ? "A combinar" : "Escolha o bairro";
+      } else {
+        elFrete.textContent = frete === 0 ? "Grátis" : formatarMoeda(frete);
+      }
+    }
+
+    if (aviso) {
+      const faltaParaGratis =
+        area && area.gratis_acima !== null && area.gratis_acima !== undefined && frete > 0
+          ? Number(area.gratis_acima) - subtotalProdutos
+          : 0;
+      aviso.textContent =
+        faltaParaGratis > 0
+          ? `Faltam ${formatarMoeda(faltaParaGratis)} em produtos para ganhar frete grátis neste bairro!`
+          : "";
+    }
+
+    if (avisoPagamento) {
+      avisoPagamento.textContent =
+        "O pagamento (Pix ou Cartão) é combinado diretamente na conversa do WhatsApp.";
+    }
+
+    return frete;
+  }
+
   function salvarCarrinho() {
     try {
       localStorage.setItem(CHAVE_STORAGE_CARRINHO, JSON.stringify(estado.carrinho));
@@ -1258,7 +1390,10 @@
     );
 
     if (contador) contador.textContent = String(totalUnidades);
-    if (elTotal) elTotal.textContent = formatarMoeda(valorTotal);
+    const elSubtotal = document.getElementById("carrinhoSubtotalValor");
+    if (elSubtotal) elSubtotal.textContent = formatarMoeda(valorTotal);
+    const freteCarrinho = renderizarEntregaCarrinho(valorTotal);
+    if (elTotal) elTotal.textContent = formatarMoeda(valorTotal + (freteCarrinho || 0));
 
     if (!containerItens) return;
     containerItens.textContent = "";
@@ -1327,11 +1462,38 @@
     });
   }
 
+  function montarBlocoEntregaPedido(subtotalProdutos) {
+    if (estado.areasEntrega.length === 0) {
+      return [`*Total do pedido: ${formatarMoeda(subtotalProdutos)}*`];
+    }
+    const area = obterAreaEntregaSelecionada();
+    if (!area) {
+      return [
+        `Produtos: ${formatarMoeda(subtotalProdutos)}`,
+        `Entrega em casa: *bairro fora da lista — combinar frete*`,
+        `*Total dos produtos: ${formatarMoeda(subtotalProdutos)}* (+ frete a combinar)`
+      ];
+    }
+    const frete = calcularFreteArea(area, subtotalProdutos);
+    return [
+      `Produtos: ${formatarMoeda(subtotalProdutos)}`,
+      `Entrega em casa (${area.nome}): ${frete === 0 ? "*Grátis*" : formatarMoeda(frete)}`,
+      `*Total do pedido: ${formatarMoeda(subtotalProdutos + frete)}*`
+    ];
+  }
+
   function enviarCarrinhoWhatsapp() {
     if (estado.carrinho.length === 0) return;
 
     if (!clienteEstaAptoParaCompra()) {
       solicitarLoginOuCadastroParaCompra({ tipo: "carrinho" });
+      return;
+    }
+
+    // Com áreas cadastradas, o cliente precisa escolher o bairro (ou "não está na lista")
+    if (estado.areasEntrega.length > 0 && !estado.areaEntregaSelecionada) {
+      mostrarToast("Escolha seu bairro/região de entrega antes de finalizar.");
+      document.getElementById("selectAreaEntrega")?.focus();
       return;
     }
 
@@ -1351,10 +1513,12 @@
       ``,
       ...linhasItens,
       ``,
-      `*Total do pedido: ${formatarMoeda(total)}*`,
+      ...montarBlocoEntregaPedido(total),
       ...montarBlocoIdentificacaoCliente(),
       ``,
-      `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
+      obterAreaEntregaSelecionada()
+        ? `Como podemos combinar o pagamento (Pix ou Cartão)?`
+        : `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
@@ -1448,6 +1612,12 @@
     }
 
     if (btnFinalizar) btnFinalizar.addEventListener("click", enviarCarrinhoWhatsapp);
+
+    document.getElementById("selectAreaEntrega")?.addEventListener("change", (e) => {
+      estado.areaEntregaSelecionada = e.target.value;
+      salvarAreaEntrega();
+      atualizarInterfaceCarrinho();
+    });
     if (btnLimpar) btnLimpar.addEventListener("click", limparCarrinho);
 
     // Modal de Conta do Cliente (Entrar / Cadastrar)

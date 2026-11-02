@@ -1430,3 +1430,43 @@ a {
   font-size: 1rem;
   cursor: pointer;
 }
+
+/* Entrega em casa no carrinho */
+.carrinho-entrega {
+  margin-bottom: 12px;
+}
+
+.carrinho-entrega label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--cor-verde-escuro);
+}
+
+.carrinho-entrega select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: var(--raio-botao);
+  border: 1.5px solid var(--cor-borda);
+  background-color: var(--cor-branco);
+  color: var(--cor-texto-principal);
+  font-size: 0.9rem;
+}
+
+.carrinho-entrega-aviso {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.carrinho-linha-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: var(--cor-texto-secundario);
+  margin-bottom: 4px;
+}

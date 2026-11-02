@@ -71,6 +71,7 @@
     vendasMes: [],
     todasVendas: [],
     clientes: [],
+    areasEntrega: [],
     mesRelatorioSelecionado: "",
     busca: "",
     categoriaFiltro: "todas",
@@ -1552,6 +1553,226 @@
   }
 
   // ==========================================================================
+  // 9A. ÁREAS DE ENTREGA (BAIRROS/REGIÕES E VALOR DO FRETE)
+  // ==========================================================================
+
+  async function carregarAreasEntrega() {
+    if (estado.modoDemo) return;
+    const { data, error } = await supabaseClient
+      .from("areas_entrega")
+      .select("*")
+      .order("ordem", { ascending: true })
+      .order("nome", { ascending: true });
+    if (error) throw error;
+    estado.areasEntrega = data || [];
+  }
+
+  async function abrirModalEntregas() {
+    const modal = document.getElementById("modalEntregas");
+    if (modal) {
+      modal.classList.add("aberto");
+      modal.setAttribute("aria-hidden", "false");
+    }
+    try {
+      await carregarAreasEntrega();
+    } catch (erro) {
+      console.error("Erro ao carregar áreas de entrega:", erro);
+      mostrarToast("Não foi possível carregar as áreas. Verifique se o SQL de atualização foi executado no Supabase.");
+    }
+    renderizarListaAreasEntrega();
+  }
+
+  function fecharModalEntregas() {
+    const modal = document.getElementById("modalEntregas");
+    if (modal) {
+      modal.classList.remove("aberto");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function renderizarListaAreasEntrega() {
+    const container = document.getElementById("listaAreasEntrega");
+    if (!container) return;
+    container.textContent = "";
+
+    if (estado.areasEntrega.length === 0) {
+      const vazio = document.createElement("div");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhuma área cadastrada ainda. Enquanto a lista estiver vazia, a entrega é combinada pelo WhatsApp.";
+      container.appendChild(vazio);
+      return;
+    }
+
+    estado.areasEntrega.forEach((area) => {
+      const linha = document.createElement("div");
+      linha.className = "carrinho-item";
+      linha.style.cssText = "flex-direction: column; align-items: stretch; gap: 8px;";
+      if (!area.ativa) linha.style.opacity = "0.6";
+
+      const inputNome = document.createElement("input");
+      inputNome.type = "text";
+      inputNome.className = "form-input";
+      inputNome.maxLength = 80;
+      inputNome.value = area.nome || "";
+      inputNome.style.fontWeight = "700";
+
+      const grade = document.createElement("div");
+      grade.style.cssText = "display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem;";
+
+      const criarCampoValor = (rotulo, valor, placeholder) => {
+        const label = document.createElement("label");
+        label.style.cssText = "display: flex; align-items: center; gap: 4px;";
+        label.textContent = rotulo;
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.step = "0.01";
+        input.placeholder = placeholder;
+        input.className = "form-input";
+        input.style.cssText = "width: 96px; min-height: 34px; padding: 2px 6px; font-size: 0.85rem;";
+        input.value = valor !== null && valor !== undefined ? Number(valor).toFixed(2) : "";
+        label.appendChild(input);
+        grade.appendChild(label);
+        return input;
+      };
+
+      const inputValor = criarCampoValor("Frete R$", area.valor, "0,00");
+      const inputGratis = criarCampoValor("Grátis acima de R$", area.gratis_acima, "—");
+
+      const labelAtiva = document.createElement("label");
+      labelAtiva.className = "checkbox-label";
+      const checkAtiva = document.createElement("input");
+      checkAtiva.type = "checkbox";
+      checkAtiva.checked = Boolean(area.ativa);
+      const spanAtiva = document.createElement("span");
+      spanAtiva.textContent = "Ativa no site";
+      labelAtiva.appendChild(checkAtiva);
+      labelAtiva.appendChild(spanAtiva);
+      grade.appendChild(labelAtiva);
+
+      const btnSalvar = document.createElement("button");
+      btnSalvar.type = "button";
+      btnSalvar.className = "btn-secundario-admin";
+      btnSalvar.style.cssText = "min-height: 34px; padding: 0 10px;";
+      btnSalvar.textContent = "💾 Salvar";
+      btnSalvar.addEventListener("click", () =>
+        salvarAreaEntrega(area, {
+          nome: inputNome.value,
+          valor: inputValor.value,
+          gratis: inputGratis.value,
+          ativa: checkAtiva.checked
+        })
+      );
+
+      const btnExcluir = document.createElement("button");
+      btnExcluir.type = "button";
+      btnExcluir.className = "btn-secundario-admin";
+      btnExcluir.style.cssText = "min-height: 34px; padding: 0 10px; color: #991b1b; border-color: #fca5a5;";
+      btnExcluir.textContent = "Excluir";
+      btnExcluir.addEventListener("click", () => excluirAreaEntrega(area));
+
+      grade.appendChild(btnSalvar);
+      grade.appendChild(btnExcluir);
+
+      linha.appendChild(inputNome);
+      linha.appendChild(grade);
+      container.appendChild(linha);
+    });
+  }
+
+  // Valida os campos de uma área; retorna null (com aviso) se algo estiver errado
+  function montarDadosAreaEntrega(nomeTexto, valorTexto, gratisTexto) {
+    const nome = limparTexto(nomeTexto, 80);
+    const valor = parseFloat(valorTexto);
+    const gratis = gratisTexto === "" ? null : parseFloat(gratisTexto);
+
+    if (!nome) {
+      mostrarToast("Informe o nome do bairro ou região.");
+      return null;
+    }
+    if (isNaN(valor) || valor < 0) {
+      mostrarToast("Informe um valor de frete válido (pode ser 0).");
+      return null;
+    }
+    if (gratis !== null && (isNaN(gratis) || gratis < 0)) {
+      mostrarToast("O valor para frete grátis não pode ser negativo.");
+      return null;
+    }
+    return {
+      nome,
+      valor: Number(valor.toFixed(2)),
+      gratis_acima: gratis !== null ? Number(gratis.toFixed(2)) : null
+    };
+  }
+
+  async function adicionarAreaEntregaSubmit(evento) {
+    evento.preventDefault();
+    const inputNome = document.getElementById("inputNomeAreaEntrega");
+    const inputValor = document.getElementById("inputValorAreaEntrega");
+    const inputGratis = document.getElementById("inputGratisAreaEntrega");
+
+    const dados = montarDadosAreaEntrega(inputNome.value, inputValor.value, inputGratis.value);
+    if (!dados) return;
+    const novaArea = { ...dados, ativa: true, ordem: estado.areasEntrega.length + 1 };
+
+    try {
+      if (estado.modoDemo) {
+        estado.areasEntrega.push({ id: "area-" + Date.now(), ...novaArea });
+      } else {
+        const { error } = await supabaseClient.from("areas_entrega").insert([novaArea]);
+        if (error) throw error;
+        await carregarAreasEntrega();
+      }
+      inputNome.value = "";
+      inputValor.value = "";
+      inputGratis.value = "";
+      renderizarListaAreasEntrega();
+      mostrarToast("Área de entrega adicionada!");
+    } catch (erro) {
+      console.error("Erro ao adicionar área de entrega:", erro);
+      mostrarToast("Não foi possível adicionar. Verifique se o SQL de atualização foi executado no Supabase.");
+    }
+  }
+
+  async function salvarAreaEntrega(area, campos) {
+    const dados = montarDadosAreaEntrega(campos.nome, campos.valor, campos.gratis);
+    if (!dados) return;
+    const atualizacao = { ...dados, ativa: campos.ativa };
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("areas_entrega")
+          .update(atualizacao)
+          .eq("id", area.id);
+        if (error) throw error;
+      }
+      Object.assign(area, atualizacao);
+      renderizarListaAreasEntrega();
+      mostrarToast("Área de entrega salva!");
+    } catch (erro) {
+      console.error("Erro ao salvar área de entrega:", erro);
+      mostrarToast("Não foi possível salvar a área de entrega.");
+    }
+  }
+
+  async function excluirAreaEntrega(area) {
+    if (!window.confirm(`Excluir a área de entrega "${area.nome}"?`)) return;
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient.from("areas_entrega").delete().eq("id", area.id);
+        if (error) throw error;
+      }
+      estado.areasEntrega = estado.areasEntrega.filter((a) => a.id !== area.id);
+      renderizarListaAreasEntrega();
+      mostrarToast("Área de entrega excluída.");
+    } catch (erro) {
+      console.error("Erro ao excluir área de entrega:", erro);
+      mostrarToast("Não foi possível excluir a área de entrega.");
+    }
+  }
+
+  // ==========================================================================
   // 9B. RELATÓRIO FINANCEIRO MENSAL (ENTRADAS, SAÍDAS E EXPORTAÇÃO EXCEL)
   // ==========================================================================
 
@@ -2382,6 +2603,17 @@
     document
       .getElementById("btnRestaurarCategoriasPadrao")
       ?.addEventListener("click", aplicarCategoriasOrganizadasPadrao);
+
+    // Modal de Áreas de Entrega
+    document
+      .getElementById("btnGerenciarEntregas")
+      ?.addEventListener("click", abrirModalEntregas);
+    document
+      .getElementById("btnFecharModalEntregas")
+      ?.addEventListener("click", fecharModalEntregas);
+    document
+      .getElementById("formNovaAreaEntrega")
+      ?.addEventListener("submit", adicionarAreaEntregaSubmit);
 
     // Modal de Relatório Mensal e Excel
     document

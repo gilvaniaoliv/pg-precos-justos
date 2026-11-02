@@ -365,11 +365,29 @@
       <div id="carrinhoItens" class="carrinho-itens"></div>
 
       <div class="carrinho-rodape">
+        <!-- Entrega em casa: aparece quando há áreas cadastradas no admin -->
+        <div id="blocoEntregaCarrinho" class="carrinho-entrega" style="display: none;">
+          <label for="selectAreaEntrega">🚚 Entrega na sua casa — escolha seu bairro/região</label>
+          <select id="selectAreaEntrega"></select>
+          <small id="avisoAreaEntrega" class="carrinho-entrega-aviso"></small>
+        </div>
+
+        <div id="linhasFreteCarrinho" style="display: none;">
+          <div class="carrinho-linha-sub">
+            <span>Produtos:</span>
+            <span id="carrinhoSubtotalValor">R$ 0,00</span>
+          </div>
+          <div class="carrinho-linha-sub">
+            <span>Entrega:</span>
+            <span id="carrinhoFreteValor">—</span>
+          </div>
+        </div>
+
         <div class="carrinho-linha-total">
           <span>Total estimado:</span>
           <span id="carrinhoTotalValor">R$ 0,00</span>
         </div>
-        <p class="carrinho-aviso-pix">
+        <p id="carrinhoAvisoPagamento" class="carrinho-aviso-pix">
           O pagamento (Pix ou Cartão) e a entrega são combinados diretamente na conversa do WhatsApp.
         </p>
         <button type="button" id="btnFinalizarWhatsapp" class="btn-finalizar-whatsapp">

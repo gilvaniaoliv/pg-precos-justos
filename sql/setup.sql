@@ -519,3 +519,43 @@ ON CONFLICT (slug) DO UPDATE SET
     nome = EXCLUDED.nome,
     subcategorias = EXCLUDED.subcategorias,
     ordem = EXCLUDED.ordem;
+
+-- ============================================================================
+-- 10. ÁREAS DE ENTREGA (BAIRROS/REGIÕES COM VALOR DO FRETE)
+-- ============================================================================
+-- Cadastradas no admin; o cliente escolhe a área no carrinho e o frete
+-- é somado ao total do pedido enviado pelo WhatsApp.
+CREATE TABLE IF NOT EXISTS public.areas_entrega (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome TEXT NOT NULL CHECK (char_length(trim(nome)) > 0 AND char_length(nome) <= 80),
+    valor NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (valor >= 0),
+    gratis_acima NUMERIC(10, 2) CHECK (gratis_acima IS NULL OR gratis_acima >= 0),
+    ativa BOOLEAN NOT NULL DEFAULT true,
+    ordem INTEGER NOT NULL DEFAULT 0,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.areas_entrega ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.areas_entrega FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Areas ativas visiveis para todos" ON public.areas_entrega;
+DROP POLICY IF EXISTS "Admin gerencia areas de entrega" ON public.areas_entrega;
+
+-- Visitantes só enxergam as áreas ativas
+CREATE POLICY "Areas ativas visiveis para todos"
+    ON public.areas_entrega
+    FOR SELECT
+    TO anon
+    USING (ativa = true);
+
+-- Apenas você e seu sócio (logados) criam, editam ou apagam áreas
+CREATE POLICY "Admin gerencia areas de entrega"
+    ON public.areas_entrega
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+REVOKE ALL ON TABLE public.areas_entrega FROM anon;
+GRANT SELECT ON TABLE public.areas_entrega TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.areas_entrega TO authenticated;

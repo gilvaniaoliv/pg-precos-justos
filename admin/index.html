@@ -151,6 +151,9 @@
         <button type="button" id="btnGerenciarCategorias" class="btn-secundario-admin">
           🏷️ Gerenciar Categorias
         </button>
+        <button type="button" id="btnGerenciarEntregas" class="btn-secundario-admin">
+          🚚 Áreas de Entrega
+        </button>
       </div>
 
       <!-- Busca e Filtros (Categoria, Estoque Baixo, Pesquisa > 60d, Ativo/Inativo) -->
@@ -450,6 +453,44 @@
         </form>
 
         <div id="listaCategoriasGerenciar" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       5B. MODAL: ÁREAS DE ENTREGA (BAIRROS/REGIÕES E VALOR DO FRETE)
+       ======================================================================== -->
+  <div id="modalEntregas" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" style="max-width: 680px;" role="dialog" aria-labelledby="tituloModalEntregas">
+      <div class="modal-topo">
+        <h2 id="tituloModalEntregas">🚚 Áreas de Entrega</h2>
+        <button type="button" id="btnFecharModalEntregas" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-corpo">
+        <p class="form-ajuda" style="margin-bottom: 12px;">
+          Cadastre os bairros ou regiões onde vocês entregam. O cliente escolhe a área no pedido e o frete é somado ao total.
+          Quem não achar a área na lista combina a entrega pelo WhatsApp.
+        </p>
+
+        <form id="formNovaAreaEntrega" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding: 12px; background: #f8f7f3; border-radius: 10px; border: 1px solid #e5e3dc;">
+          <input type="text" id="inputNomeAreaEntrega" class="form-input" placeholder="Bairro ou região (ex.: Salvador - Pituba / Rio Vermelho)" required maxlength="80" />
+          <div class="form-grade-dupla">
+            <div class="form-grupo" style="margin-bottom: 0;">
+              <label for="inputValorAreaEntrega" class="form-label">Valor do frete (R$) *</label>
+              <input type="number" id="inputValorAreaEntrega" class="form-input" min="0" step="0.01" placeholder="10.00" required />
+            </div>
+            <div class="form-grupo" style="margin-bottom: 0;">
+              <label for="inputGratisAreaEntrega" class="form-label">Frete grátis acima de (R$)</label>
+              <input type="number" id="inputGratisAreaEntrega" class="form-input" min="0" step="0.01" placeholder="Opcional — ex.: 150.00" />
+            </div>
+          </div>
+          <button type="submit" class="btn-primario-admin">+ Adicionar Área de Entrega</button>
+        </form>
+
+        <div id="listaAreasEntrega" style="display: flex; flex-direction: column; gap: 8px;"></div>
       </div>
     </div>
   </div>
