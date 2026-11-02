@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS public.categorias (
 -- Caso a tabela já tenha sido criada antes, adiciona a coluna subcategorias sem perder dados
 ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias TEXT[] NOT NULL DEFAULT '{}';
 
+-- Categoria arquivada fica oculta na vitrine (com seus produtos) sem ser apagada
+ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS arquivada BOOLEAN NOT NULL DEFAULT false;
+
 -- ============================================================================
 -- 2. TABELA DE PRODUTOS (CONTÉM CAMPOS PÚBLICOS E CAMPOS RESTRITOS DO ADMIN)
 -- ============================================================================

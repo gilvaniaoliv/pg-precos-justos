@@ -370,6 +370,17 @@
       mostrarToast("Não foi possível carregar os produtos no momento.");
     }
 
+    // Categorias arquivadas no admin (e os produtos delas) não aparecem na vitrine
+    const idsArquivadas = new Set(
+      estado.categorias.filter((c) => c.arquivada).map((c) => String(c.id))
+    );
+    if (idsArquivadas.size > 0) {
+      estado.categorias = estado.categorias.filter((c) => !c.arquivada);
+      estado.produtos = estado.produtos.filter(
+        (p) => !idsArquivadas.has(String(p.categoria_id))
+      );
+    }
+
     renderizarCategorias();
     renderizarVitrine();
   }

@@ -1356,10 +1356,23 @@
       const divInfo = document.createElement("div");
       divInfo.style.flex = "1";
 
+      if (cat.arquivada) linha.style.opacity = "0.6";
+
       const span = document.createElement("div");
       span.style.fontWeight = "800";
-      span.textContent = cat.nome;
+      span.textContent = cat.arquivada ? `📦 ${cat.nome} (arquivada)` : cat.nome;
       divInfo.appendChild(span);
+
+      const qtdProdutos = estado.produtos.filter(
+        (p) => String(p.categoria_id) === String(cat.id)
+      ).length;
+      const contagem = document.createElement("div");
+      contagem.style.fontSize = "0.78rem";
+      contagem.style.color = "#57534e";
+      contagem.textContent = cat.arquivada
+        ? `${qtdProdutos} ${qtdProdutos === 1 ? "produto" : "produtos"} • oculta na vitrine`
+        : `${qtdProdutos} ${qtdProdutos === 1 ? "produto" : "produtos"}`;
+      divInfo.appendChild(contagem);
 
       const subs = Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0
         ? cat.subcategorias
@@ -1381,10 +1394,61 @@
       btnDel.textContent = "Excluir";
       btnDel.addEventListener("click", () => excluirCategoria(cat));
 
+      const btnArquivar = document.createElement("button");
+      btnArquivar.type = "button";
+      btnArquivar.className = "btn-secundario-admin";
+      btnArquivar.style.minHeight = "34px";
+      btnArquivar.style.padding = "0 10px";
+      btnArquivar.textContent = cat.arquivada ? "📤 Desarquivar" : "📦 Arquivar";
+      btnArquivar.title = cat.arquivada
+        ? "Voltar a mostrar esta categoria na vitrine"
+        : "Esconder esta categoria (e os produtos dela) da vitrine sem apagar";
+      btnArquivar.addEventListener("click", () => alternarArquivamentoCategoria(cat, qtdProdutos));
+
+      const botoes = document.createElement("div");
+      botoes.style.cssText = "display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;";
+      botoes.appendChild(btnArquivar);
+      botoes.appendChild(btnDel);
+
       linha.appendChild(divInfo);
-      linha.appendChild(btnDel);
+      linha.appendChild(botoes);
       container.appendChild(linha);
     });
+  }
+
+  async function alternarArquivamentoCategoria(cat, qtdProdutos) {
+    const arquivar = !cat.arquivada;
+    if (
+      arquivar &&
+      qtdProdutos > 0 &&
+      !window.confirm(
+        `A categoria "${cat.nome}" tem ${qtdProdutos} ${
+          qtdProdutos === 1 ? "produto" : "produtos"
+        }. Ao arquivar, eles também deixam de aparecer na vitrine (nada é apagado). Continuar?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ arquivada: arquivar })
+          .eq("id", cat.id);
+        if (error) throw error;
+      }
+      cat.arquivada = arquivar;
+      renderizarListaCategoriasModal();
+      mostrarToast(
+        arquivar
+          ? `Categoria "${cat.nome}" arquivada. Ela não aparece mais na vitrine.`
+          : `Categoria "${cat.nome}" voltou para a vitrine.`
+      );
+    } catch (erro) {
+      console.error("Erro ao arquivar categoria:", erro);
+      mostrarToast("Não foi possível arquivar. Verifique se o SQL de atualização foi executado no Supabase.");
+    }
   }
 
   async function adicionarCategoriaSubmit(evento) {
