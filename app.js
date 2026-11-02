@@ -910,7 +910,7 @@
       `  Valor: *${precoFormatado}*`,
       ...montarBlocoIdentificacaoCliente(),
       ``,
-      `Podemos confirmar a disponibilidade e o pagamento (Pix ou Cartão)?`
+      `Podemos confirmar a disponibilidade, a entrega e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
@@ -1534,7 +1534,7 @@
       ``,
       obterAreaEntregaSelecionada()
         ? `Como podemos combinar o pagamento (Pix ou Cartão)?`
-        : `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
+        : `Como podemos combinar a entrega e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
