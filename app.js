@@ -20,6 +20,7 @@
   const CHAVE_STORAGE_CONTAS_LOCAIS = "pg_precos_justos_contas_clientes_v1";
   const CHAVE_STORAGE_AREA_ENTREGA = "pg_precos_justos_area_entrega_v1";
   const AREA_FORA_DA_LISTA = "fora";
+  const AREA_RETIRADA = "retirada";
   let supabaseInstancia = null;
 
   // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, etc.)
@@ -910,7 +911,7 @@
       `  Valor: *${precoFormatado}*`,
       ...montarBlocoIdentificacaoCliente(),
       ``,
-      `Podemos confirmar a disponibilidade, a entrega e o pagamento (Pix ou Cartão)?`
+      `Podemos confirmar a disponibilidade, a entrega/retirada e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
@@ -1253,16 +1254,17 @@
     const aviso = document.getElementById("avisoAreaEntrega");
     const linhasFrete = document.getElementById("linhasFreteCarrinho");
     const avisoPagamento = document.getElementById("carrinhoAvisoPagamento");
-    const exibir = estado.areasEntrega.length > 0 && estado.carrinho.length > 0;
+    const exibir = estado.carrinho.length > 0;
+    const temAreas = estado.areasEntrega.length > 0;
 
     if (bloco) bloco.style.display = exibir ? "block" : "none";
     if (linhasFrete) linhasFrete.style.display = exibir ? "block" : "none";
-    if (estado.areasEntrega.length === 0) return null;
 
     // Se a área salva foi removida no admin, limpa a escolha
     if (
       estado.areaEntregaSelecionada &&
       estado.areaEntregaSelecionada !== AREA_FORA_DA_LISTA &&
+      estado.areaEntregaSelecionada !== AREA_RETIRADA &&
       !obterAreaEntregaSelecionada()
     ) {
       estado.areaEntregaSelecionada = "";
@@ -1271,17 +1273,22 @@
 
     if (select) {
       select.textContent = "";
-      const opcoes = [{ valor: "", texto: "Selecione seu bairro/região..." }];
+      const opcoes = [
+        { valor: "", texto: "Selecione: entrega em casa ou retirada..." },
+        { valor: AREA_RETIRADA, texto: "🏪 Retirar no local — Grátis (horário combinado)" }
+      ];
       estado.areasEntrega.forEach((area) => {
         const frete = calcularFreteArea(area, subtotalProdutos);
         opcoes.push({
           valor: String(area.id),
-          texto: `${area.nome} — ${frete === 0 ? "Grátis" : formatarMoeda(frete)}`
+          texto: `🚚 Entrega em casa: ${area.nome} — ${frete === 0 ? "Grátis" : formatarMoeda(frete)}`
         });
       });
       opcoes.push({
         valor: AREA_FORA_DA_LISTA,
-        texto: "Meu bairro não está na lista (combinar pelo WhatsApp)"
+        texto: temAreas
+          ? "🚚 Entrega em casa: meu bairro não está na lista (combinar)"
+          : "🚚 Entrega em casa (frete combinado pelo WhatsApp)"
       });
       opcoes.forEach((op) => {
         const opt = document.createElement("option");
@@ -1296,9 +1303,11 @@
     const frete = calcularFreteArea(area, subtotalProdutos);
     const elFrete = document.getElementById("carrinhoFreteValor");
     if (elFrete) {
-      if (frete === null) {
+      if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
+        elFrete.textContent = "Retirada (grátis)";
+      } else if (frete === null) {
         elFrete.textContent =
-          estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA ? "A combinar" : "Escolha o bairro";
+          estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA ? "A combinar" : "Escolha uma opção";
       } else {
         elFrete.textContent = frete === 0 ? "Grátis" : formatarMoeda(frete);
       }
@@ -1479,14 +1488,20 @@
   }
 
   function montarBlocoEntregaPedido(subtotalProdutos) {
-    if (estado.areasEntrega.length === 0) {
-      return [`*Total do pedido: ${formatarMoeda(subtotalProdutos)}*`];
+    if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
+      return [
+        `Produtos: ${formatarMoeda(subtotalProdutos)}`,
+        `Recebimento: *Retirada no local (grátis)* — combinar horário`,
+        `*Total do pedido: ${formatarMoeda(subtotalProdutos)}*`
+      ];
     }
     const area = obterAreaEntregaSelecionada();
     if (!area) {
       return [
         `Produtos: ${formatarMoeda(subtotalProdutos)}`,
-        `Entrega em casa: *bairro fora da lista — combinar frete*`,
+        estado.areasEntrega.length > 0
+          ? `Entrega em casa: *bairro fora da lista — combinar frete*`
+          : `Entrega em casa: *combinar frete*`,
         `*Total dos produtos: ${formatarMoeda(subtotalProdutos)}* (+ frete a combinar)`
       ];
     }
@@ -1506,9 +1521,9 @@
       return;
     }
 
-    // Com áreas cadastradas, o cliente precisa escolher o bairro (ou "não está na lista")
-    if (estado.areasEntrega.length > 0 && !estado.areaEntregaSelecionada) {
-      mostrarToast("Escolha seu bairro/região de entrega antes de finalizar.");
+    // O cliente precisa escolher entrega em casa (bairro) ou retirada
+    if (!estado.areaEntregaSelecionada) {
+      mostrarToast("Escolha como quer receber (entrega em casa ou retirada) antes de finalizar.");
       document.getElementById("selectAreaEntrega")?.focus();
       return;
     }
@@ -1534,7 +1549,7 @@
       ``,
       obterAreaEntregaSelecionada()
         ? `Como podemos combinar o pagamento (Pix ou Cartão)?`
-        : `Como podemos combinar a entrega e o pagamento (Pix ou Cartão)?`
+        : `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
     ].join("\n");
 
     const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
