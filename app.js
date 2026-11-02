@@ -661,15 +661,14 @@
 
     if (statusEstoque.esgotado) {
       btnWhatsapp.disabled = true;
-      btnWhatsapp.textContent = "Esgotado";
+      btnWhatsapp.textContent = "Produto Esgotado";
       btnCarrinho.disabled = true;
-      btnCarrinho.textContent = "Indisponível";
+      btnCarrinho.textContent = "Indisponível no momento";
     } else {
-      btnWhatsapp.textContent = "Pedir pelo WhatsApp";
+      btnWhatsapp.textContent = "📲 Pedir pelo WhatsApp";
       btnWhatsapp.addEventListener("click", () => pedirProdutoDiretoWhatsapp(produto));
 
-      btnCarrinho.textContent = "+ Lista";
-      btnCarrinho.title = "Adicionar produto à sua lista de pedido";
+      btnCarrinho.textContent = "🛒 Adicionar ao Pedido";
       btnCarrinho.addEventListener("click", () => adicionarAoCarrinho(produto));
     }
 
