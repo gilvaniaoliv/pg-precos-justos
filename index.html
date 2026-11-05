@@ -3,11 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>P&amp;G Preços Justos | Catálogo Oficial</title>
+  <title>P&amp;G Preços Justos | Loja Online Oficial — Salvador e Região</title>
   <meta
     name="description"
-    content="P&G Preços Justos - Produtos selecionados com preços na média do mercado ou abaixo. Monte seu pedido e finalize pelo WhatsApp com pagamento via Pix ou Cartão."
+    content="P&G Preços Justos — Compre online produtos para casa, eletrônicos, cuidados pessoais, moda, utilidades e bebidas com entrega em casa ou retirada grátis e pagamento via Pix ou Cartão (Mercado Pago)."
   />
+  <meta
+    name="keywords"
+    content="P&G Preços Justos, loja online Salvador, ofertas, casa e cozinha, eletrônicos, cuidados pessoais, bebidas, entrega em casa, Mercado Pago, Pix"
+  />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+  <link rel="canonical" href="https://loja.pgprecosjustos.workers.dev/" />
+
+  <!-- Open Graph / Compartilhamento e Buscadores -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:site_name" content="P&G Preços Justos" />
+  <meta property="og:title" content="P&G Preços Justos | Loja Online Oficial" />
+  <meta
+    property="og:description"
+    content="Preços na média do mercado ou abaixo, sem truques! Escolha retirada grátis ou entrega em casa e pague com Pix ou Cartão."
+  />
+  <meta property="og:url" content="https://loja.pgprecosjustos.workers.dev/" />
+  <meta property="og:image" content="https://loja.pgprecosjustos.workers.dev/img/logo-quadrada.png" />
+
   <meta name="theme-color" content="#11382a" />
   <link rel="icon" type="image/png" href="img/logo-quadrada.png" />
   <link rel="manifest" href="manifest.webmanifest" />
@@ -21,6 +41,30 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Dados Estruturados para o Google (Schema.org Store + WebSite) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "name": "P&G Preços Justos",
+    "description": "Loja online de produtos variados com preços na média do mercado ou abaixo, entrega em casa ou retirada grátis e pagamento via Pix e Cartão.",
+    "url": "https://loja.pgprecosjustos.workers.dev/",
+    "logo": "https://loja.pgprecosjustos.workers.dev/img/logo-quadrada.png",
+    "image": "https://loja.pgprecosjustos.workers.dev/img/logo-horizontal.png",
+    "telephone": "+55-71-99991-5480",
+    "priceRange": "$",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Salvador",
+      "addressRegion": "BA",
+      "addressCountry": "BR"
+    },
+    "sameAs": [
+      "https://instagram.com/precosjustos.pg"
+    ]
+  }
+  </script>
 </head>
 <body>
   <!-- ========================================================================
@@ -52,10 +96,10 @@
             type="button"
             id="btnAbrirCarrinho"
             class="btn-carrinho-topo"
-            aria-label="Abrir lista de pedido"
+            aria-label="Abrir carrinho de compras"
           >
             <span>🛒</span>
-            <span>Pedido</span>
+            <span>Carrinho</span>
             <span id="contadorCarrinho" class="contador-carrinho">0</span>
           </button>
 
@@ -90,12 +134,12 @@
     <section class="banner-secao">
       <div class="container">
         <div class="banner-card">
-          <span id="bannerTag" class="banner-tag">Ofertas Transparentes</span>
+          <span id="bannerTag" class="banner-tag">Compra Rápida e Segura</span>
           <h1 id="bannerTitulo" class="banner-titulo">
             Preços na média do mercado ou abaixo, sem truques!
           </h1>
           <p id="bannerSubtitulo" class="banner-subtitulo">
-            Compare nosso preço com a pesquisa atualizada de mercado, monte sua lista e finalize direto pelo WhatsApp com pagamento via Pix ou Cartão.
+            Compre direto pelo site: escolha retirada grátis ou entrega em casa com cálculo automático da taxa e pague via Pix ou Cartão (sincronizado com Mercado Pago / Mercado Livre). Dúvidas? Chame no WhatsApp!
           </p>
         </div>
       </div>
@@ -131,7 +175,7 @@
           </button>
         </div>
 
-        <!-- Barra de Subcategorias (Cômodos da casa, Masculino, Feminino, Infantil) -->
+        <!-- Barra de Subcategorias -->
         <div
           id="listaSubcategorias"
           class="subcategorias-lista"
@@ -165,13 +209,13 @@
           <span id="contagemProdutos" class="subtitulo-contagem">Carregando...</span>
         </div>
         <div id="gradeProdutos" class="grade-produtos">
-          <div class="estado-lista">Carregando catálogo de produtos...</div>
+          <div class="estado-lista" style="grid-column: 1 / -1;">Carregando catálogo de produtos...</div>
         </div>
       </div>
     </section>
 
     <!-- ======================================================================
-         SEÇÃO: COMO COMPRAR (3 PASSOS SIMPLES)
+         SEÇÃO: COMO COMPRAR (3 PASSOS DIRETO NO SITE)
          ====================================================================== -->
     <section id="comoComprar" class="secao-info">
       <div class="container">
@@ -182,9 +226,9 @@
           <div class="passo-card">
             <div class="passo-numero">1</div>
             <div>
-              <h3 class="passo-titulo">Selecione os produtos</h3>
+              <h3 class="passo-titulo">Escolha seus produtos</h3>
               <p class="passo-texto">
-                Navegue pelas categorias, confira o comparativo de preço de mercado e adicione os itens ao seu pedido.
+                Navegue pelas categorias, veja as fotos completas e as avaliações de outros clientes e clique em <strong>Comprar Agora</strong>.
               </p>
             </div>
           </div>
@@ -192,9 +236,9 @@
           <div class="passo-card">
             <div class="passo-numero">2</div>
             <div>
-              <h3 class="passo-titulo">Envie pelo WhatsApp</h3>
+              <h3 class="passo-titulo">Retirada ou Entrega em Casa</h3>
               <p class="passo-texto">
-                O sistema gera automaticamente um resumo organizado com os produtos, quantidades e valor total.
+                No carrinho, escolha <strong>Retirada Grátis</strong> ou <strong>Entrega em Casa</strong>. O site calcula na hora a taxa de entrega pelo seu bairro.
               </p>
             </div>
           </div>
@@ -202,9 +246,9 @@
           <div class="passo-card">
             <div class="passo-numero">3</div>
             <div>
-              <h3 class="passo-titulo">Receba em Casa ou Retire</h3>
+              <h3 class="passo-titulo">Pague com Pix ou Cartão</h3>
               <p class="passo-texto">
-                No pedido, escolha receber em casa ou retirar com a gente. Depois é só confirmar o pagamento via Pix ou Cartão pelo WhatsApp.
+                Finalize o pagamento direto no site (sincronizado com <strong>Mercado Pago / Mercado Livre</strong>). Ficou com alguma dúvida? Nosso WhatsApp está sempre à disposição!
               </p>
             </div>
           </div>
@@ -222,20 +266,6 @@
         </div>
         <div class="faq-lista">
           <details class="faq-item">
-            <summary>Por que o pedido é finalizado pelo WhatsApp?</summary>
-            <div class="faq-resposta">
-              O atendimento direto permite confirmar o pedido rapidamente e eliminar taxas de intermediários, mantendo preços justos para o cliente.
-            </div>
-          </details>
-
-          <details class="faq-item">
-            <summary>O que significa "Preço médio no mercado" nos produtos?</summary>
-            <div class="faq-resposta">
-              É o valor médio pesquisado em outras lojas para o mesmo item, exibindo a data da pesquisa. Apenas pesquisas realizadas nos últimos 60 dias são apresentadas.
-            </div>
-          </details>
-
-          <details class="faq-item">
             <summary>Os produtos estão disponíveis para pronta entrega?</summary>
             <div class="faq-resposta">
               Sim. Todos os itens ativos com botão disponível encontram-se em estoque. Quando restam menos de 3 unidades, o produto exibe a indicação "Últimas unidades".
@@ -243,9 +273,23 @@
           </details>
 
           <details class="faq-item">
+            <summary>Como funcionam a entrega em casa, a retirada e o pagamento?</summary>
+            <div class="faq-resposta">
+              Você escolhe tudo direto no site! No carrinho, selecione <strong>Retirada no local (grátis)</strong> ou <strong>Entrega em casa</strong> (a taxa de entrega do seu bairro é calculada automaticamente). O pagamento também é feito no site via <strong>Pix (sem taxa)</strong> ou <strong>Cartão</strong>, sincronizado com o Mercado Pago / Mercado Livre.
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Qual a regra para compra de bebidas alcoólicas?</summary>
+            <div class="faq-resposta">
+              A venda de bebidas alcoólicas é <strong>estritamente proibida para menores de 18 anos</strong>. Na hora da compra, é obrigatório marcar a caixa de confirmação de maioridade e informamos/analisamos a data de nascimento cadastrada.
+            </div>
+          </details>
+
+          <details class="faq-item">
             <summary>Vocês emitem nota fiscal?</summary>
             <div class="faq-resposta">
-              Se você precisar de nota fiscal, é só pedir pelo nosso WhatsApp informando <strong>nome completo, CPF e endereço</strong> que emitimos para você.
+              Se você precisar de nota fiscal, é só solicitar pelo nosso WhatsApp informando <strong>nome completo, CPF e endereço</strong> que emitimos para você.
             </div>
           </details>
 
@@ -257,9 +301,9 @@
           </details>
 
           <details class="faq-item">
-            <summary>Quais são as formas de pagamento aceitas?</summary>
+            <summary>Tenho uma dúvida sobre um produto. Como falo com vocês?</summary>
             <div class="faq-resposta">
-              Aceitamos pagamento via <strong>Pix</strong> e <strong>Cartão</strong>. Após enviar sua lista pelo WhatsApp, combinamos a forma de pagamento de sua preferência na própria conversa.
+              Nosso WhatsApp <strong>(71) 99991-5480</strong> é exclusivo para tirar dúvidas e dar suporte rápido! Basta tocar no botão verde de dúvidas no canto da tela.
             </div>
           </details>
         </div>
@@ -276,26 +320,26 @@
         </div>
         <div class="grade-politicas">
           <article class="politica-card">
-            <h3>Pagamento</h3>
+            <h3>Pagamento no Site</h3>
             <p>
-              Aceitamos <strong>Pix</strong> e <strong>Cartão</strong>, combinados diretamente durante o atendimento pelo WhatsApp na confirmação do pedido.
+              Você paga diretamente no site com segurança via <strong>Pix (0% de taxa)</strong> ou <strong>Cartão de Crédito/Débito</strong> (com cálculo automático da taxa da operadora), sincronizado com <strong>Mercado Pago / Mercado Livre</strong>.
             </p>
           </article>
 
           <article class="politica-card">
             <h3>Entrega e Retirada</h3>
             <p>
-              Você pode <strong>receber em casa</strong>, com entrega feita por empresa parceira, ou <strong>retirar sem custo</strong> com horário combinado. No pedido você escolhe a opção e, para entrega, já vê o valor pelo seu bairro. Se o seu bairro não estiver na lista, consulte pelo WhatsApp.
+              Você pode <strong>receber em casa</strong> (o valor do frete é calculado automaticamente pelo seu bairro no carrinho) ou escolher <strong>retirada grátis</strong> no local com horário agendado.
             </p>
-            <p>
-              Precisa de nota fiscal? Peça pelo WhatsApp com nome completo, CPF e endereço.
+            <p style="margin-top: 6px;">
+              Precisa de nota fiscal ou ficou com alguma dúvida? Chame no nosso WhatsApp.
             </p>
           </article>
 
           <article class="politica-card">
-            <h3>Política de Troca</h3>
+            <h3>Política de Troca e +18</h3>
             <p>
-              Todos os itens são conferidos antes do envio. Em caso de defeito de fabricação, solicite a troca ou o reembolso pelo nosso WhatsApp em até 7 dias corridos após o recebimento.
+              Todos os itens são conferidos antes do envio. Em caso de defeito de fabricação, solicite a troca em até 7 dias corridos após o recebimento. Bebidas alcoólicas são vendidas apenas para maiores de 18 anos mediante validação da data de nascimento.
             </p>
           </article>
         </div>
@@ -317,11 +361,11 @@
         </div>
 
         <div>
-          <h3 class="rodape-titulo">Atendimento</h3>
+          <h3 class="rodape-titulo">Central de Dúvidas</h3>
           <ul class="rodape-links">
             <li>
               <a id="linkWhatsappRodape" href="https://wa.me/5571999915480" target="_blank" rel="noopener noreferrer">
-                WhatsApp: (71) 99991-5480
+                WhatsApp (Dúvidas): (71) 99991-5480
               </a>
             </li>
             <li>
@@ -345,19 +389,19 @@
 
       <div class="rodape-base">
         <span>&copy; <span id="anoAtual">2026</span> <span id="nomeLojaCopy">P&amp;G Preços Justos</span>. Todos os direitos reservados.</span>
-        <span>Atendimento e pedidos via WhatsApp.</span>
+        <span>Compra online • Pix e Cartão (Mercado Pago) • Dúvidas via WhatsApp.</span>
       </div>
     </div>
   </footer>
 
   <!-- ========================================================================
-       GAVETA (DRAWER) DO PEDIDO
+       GAVETA (DRAWER) DO CARRINHO E CHECKOUT DIRETO NO SITE
        ======================================================================== -->
   <div id="carrinhoOverlay" class="carrinho-overlay" aria-hidden="true">
-    <aside class="carrinho-painel" aria-label="Seu pedido">
+    <aside class="carrinho-painel" aria-label="Seu carrinho e pagamento">
       <div class="carrinho-topo">
-        <h2>Resumo do Pedido</h2>
-        <button type="button" id="btnFecharCarrinho" class="btn-fechar-carrinho" aria-label="Fechar pedido">
+        <h2>🛒 Finalizar Compra</h2>
+        <button type="button" id="btnFecharCarrinho" class="btn-fechar-carrinho" aria-label="Fechar carrinho">
           ✕
         </button>
       </div>
@@ -365,44 +409,209 @@
       <div id="carrinhoItens" class="carrinho-itens"></div>
 
       <div class="carrinho-rodape">
-        <!-- Entrega em casa: aparece quando há áreas cadastradas no admin -->
+        <!-- 1. Opção de Retirada ou Entrega em Casa com cálculo de taxa -->
         <div id="blocoEntregaCarrinho" class="carrinho-entrega" style="display: none;">
-          <label for="selectAreaEntrega">🚚 Como você quer receber?</label>
+          <label for="selectAreaEntrega">🚚 1. Escolha Entrega em Casa ou Retirada:</label>
           <select id="selectAreaEntrega"></select>
           <small id="avisoAreaEntrega" class="carrinho-entrega-aviso"></small>
         </div>
 
+        <!-- 2. Forma de Pagamento sincronizada com Mercado Pago / Mercado Livre -->
+        <div id="blocoMetodoPagamentoCarrinho" class="carrinho-entrega" style="display: none;">
+          <label for="selectMetodoPagamentoCarrinho">💳 2. Forma de Pagamento (Mercado Pago):</label>
+          <select id="selectMetodoPagamentoCarrinho">
+            <option value="pix">💠 Pix (Mercado Pago — 0% de taxa)</option>
+            <option value="cartao">💳 Cartão de Crédito / Débito (Mercado Pago)</option>
+          </select>
+        </div>
+
+        <!-- 3. Confirmação obrigatória +18 quando houver bebida alcoólica no carrinho -->
+        <div id="blocoConfirmacaoMaiorIdadeCarrinho" class="alerta-maior-idade-carrinho" style="display: none;">
+          <label class="checkbox-maior-idade-label">
+            <input type="checkbox" id="checkMaiorIdadeCarrinho" />
+            <span>
+              🔞 <strong>Declaro que tenho mais de 18 anos.</strong> Estou ciente de que a venda de bebida alcoólica é proibida para menores e que minha data de nascimento será analisada.
+            </span>
+          </label>
+        </div>
+
+        <!-- 4. Resumo transparente de valores (Produtos + Entrega + Taxa = Total) -->
         <div id="linhasFreteCarrinho" style="display: none;">
           <div class="carrinho-linha-sub">
-            <span>Produtos:</span>
+            <span>Subtotal dos produtos:</span>
             <span id="carrinhoSubtotalValor">R$ 0,00</span>
           </div>
           <div class="carrinho-linha-sub">
-            <span>Entrega:</span>
+            <span>Taxa de entrega / retirada:</span>
             <span id="carrinhoFreteValor">—</span>
+          </div>
+          <div class="carrinho-linha-sub">
+            <span id="carrinhoRotuloTaxaPagamento">Taxa de pagamento (Pix):</span>
+            <span id="carrinhoTaxaPagamentoValor">R$ 0,00 (Grátis)</span>
           </div>
         </div>
 
         <div class="carrinho-linha-total">
-          <span>Total estimado:</span>
+          <span>Total a pagar:</span>
           <span id="carrinhoTotalValor">R$ 0,00</span>
         </div>
         <p id="carrinhoAvisoPagamento" class="carrinho-aviso-pix">
-          O pagamento (Pix ou Cartão) é combinado diretamente na conversa do WhatsApp.
+          Pagamento seguro no site via Pix ou Cartão (Mercado Pago / Mercado Livre).
         </p>
         <button type="button" id="btnFinalizarWhatsapp" class="btn-finalizar-whatsapp">
-          Finalizar Pedido pelo WhatsApp
+          🔒 Pagar e Finalizar Compra
         </button>
         <button type="button" id="btnLimparCarrinho" class="btn-limpar-carrinho">
-          Limpar lista
+          Limpar carrinho
         </button>
       </div>
     </aside>
   </div>
 
   <!-- ========================================================================
-       MODAL: CONTA DO CLIENTE (ENTRAR / CADASTRAR)
+       MODAL: PAGAMENTO INTEGRADO (MERCADO PAGO / MERCADO LIVRE - PIX E CARTÃO)
        ======================================================================== -->
+  <div id="modalPagamentoCheckout" class="modal-cliente-overlay" aria-hidden="true">
+    <div class="modal-cliente-caixa" style="max-width: 500px;" role="dialog" aria-labelledby="tituloModalPagamento">
+      <div class="modal-cliente-topo">
+        <h2 id="tituloModalPagamento">🔒 Pagamento — Mercado Pago</h2>
+        <button type="button" id="btnFecharModalPagamento" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-cliente-corpo">
+        <div id="resumoCheckoutPagamento" class="checkout-resumo-box"></div>
+
+        <!-- Bloco PIX -->
+        <div id="blocoPagamentoPixModal" style="display: none;">
+          <div class="checkout-pix-card">
+            <span class="checkout-badge-mp">💠 Pix Instantâneo • Mercado Pago (0% Taxa)</span>
+            <p style="font-size: 0.84rem; color: #57534e; margin: 8px 0;">
+              Escaneie o QR Code abaixo no aplicativo do seu banco ou copie o código <strong>Pix Copia e Cola</strong>:
+            </p>
+            <div class="checkout-qr-wrapper">
+              <img id="imgQrCodePixCheckout" alt="QR Code Pix" class="checkout-qr-img" />
+            </div>
+            <div class="campo-cliente" style="margin-top: 10px;">
+              <label for="inputPixCopiaECola">Código Pix Copia e Cola / Chave Pix:</label>
+              <input type="text" id="inputPixCopiaECola" readonly />
+            </div>
+            <button type="button" id="btnCopiarCodigoPix" class="btn-submit-cliente" style="background-color: #0f3d2e; margin-bottom: 8px;">
+              📋 Copiar Código / Chave Pix
+            </button>
+          </div>
+        </div>
+
+        <!-- Bloco CARTÃO MERCADO PAGO -->
+        <div id="blocoPagamentoCartaoModal" style="display: none;">
+          <div class="checkout-pix-card">
+            <span class="checkout-badge-mp">💳 Cartão de Crédito / Débito • Mercado Pago</span>
+            <p id="textoInstrucaoCartaoMP" style="font-size: 0.86rem; color: #1c1917; margin: 10px 0;">
+              A taxa da operadora já foi calculada no valor total acima. Clique no botão abaixo para abrir o ambiente seguro do Mercado Pago / Mercado Livre ou concluir o pagamento no cartão:
+            </p>
+            <a
+              id="btnAbrirLinkCartaoMP"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-submit-cliente"
+              style="display: none; text-align: center; background-color: #009ee3; margin-bottom: 10px; line-height: 46px;"
+            >
+              💳 Pagar com Cartão no Mercado Pago →
+            </a>
+          </div>
+        </div>
+
+        <button type="button" id="btnConfirmarPedidoPago" class="btn-finalizar-whatsapp" style="margin-top: 10px;">
+          ✅ Confirmar Pedido Realizado
+        </button>
+
+        <div style="margin-top: 12px; text-align: center;">
+          <a
+            id="linkDuvidaCheckoutWhatsapp"
+            href="https://wa.me/5571999915480"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="font-size: 0.82rem; color: #0f3d2e; font-weight: 600; text-decoration: underline;"
+          >
+            💬 Ficou com alguma dúvida? Falar no WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL: FOTOS COMPLETAS E AVALIAÇÕES DOS CLIENTES DO PRODUTO
+       ======================================================================== -->
+  <div id="modalAvaliacoesProduto" class="modal-cliente-overlay" aria-hidden="true">
+    <div class="modal-cliente-caixa" style="max-width: 560px;" role="dialog" aria-labelledby="tituloModalAvaliacoes">
+      <div class="modal-cliente-topo">
+        <h2 id="tituloModalAvaliacoes">⭐ Detalhes e Avaliações do Produto</h2>
+        <button type="button" id="btnFecharModalAvaliacoes" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-cliente-corpo">
+        <!-- Galeria de fotos completas sem corte -->
+        <div id="galeriaModalProduto" class="galeria-modal-produto">
+          <div class="galeria-modal-principal">
+            <img id="imgPrincipalModalProduto" src="" alt="Foto do produto" />
+          </div>
+          <div id="miniaturasModalProduto" class="galeria-modal-miniaturas"></div>
+        </div>
+
+        <h3 id="nomeProdutoModalAvaliacao" style="font-size: 1.08rem; font-weight: 700; color: #0f3d2e; margin-bottom: 4px;"></h3>
+        <div id="precoProdutoModalAvaliacao" style="font-size: 1.2rem; font-weight: 700; color: #ea580c; margin-bottom: 8px;"></div>
+        <p id="descricaoProdutoModalAvaliacao" style="font-size: 0.88rem; color: #57534e; margin-bottom: 14px; white-space: pre-line;"></p>
+
+        <!-- Formulário para cliente avaliar o produto -->
+        <div class="box-nova-avaliacao">
+          <h4 style="font-size: 0.92rem; font-weight: 700; color: #0f3d2e; margin-bottom: 8px;">
+            ✍️ Avaliar este produto
+          </h4>
+          <form id="formNovaAvaliacao">
+            <input type="hidden" id="avaliacaoProdutoId" />
+            <div class="campo-cliente">
+              <label for="avaliacaoClienteNome">Seu nome *</label>
+              <input type="text" id="avaliacaoClienteNome" required maxlength="80" placeholder="Ex.: Maria Silva" />
+            </div>
+            <div class="campo-cliente">
+              <label for="avaliacaoNota">Sua nota *</label>
+              <select id="avaliacaoNota" class="select-padrao-cliente" required>
+                <option value="5">⭐⭐⭐⭐⭐ (5 — Excelente)</option>
+                <option value="4">⭐⭐⭐⭐ (4 — Muito bom)</option>
+                <option value="3">⭐⭐⭐ (3 — Bom)</option>
+                <option value="2">⭐⭐ (2 — Regular)</option>
+                <option value="1">⭐ (1 — Ruim)</option>
+              </select>
+            </div>
+            <div class="campo-cliente">
+              <label for="avaliacaoComentario">Seu comentário sobre o produto *</label>
+              <textarea
+                id="avaliacaoComentario"
+                class="textarea-padrao-cliente"
+                required
+                maxlength="500"
+                placeholder="Conte o que achou da qualidade, entrega e custo-benefício..."
+              ></textarea>
+            </div>
+            <button type="submit" id="btnEnviarAvaliacao" class="btn-submit-cliente">
+              ⭐ Publicar Avaliação
+            </button>
+          </form>
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #0f3d2e; margin: 16px 0 8px;">
+          💬 Avaliações dos Clientes (<span id="contadorAvaliacoesModal">0</span>)
+        </h4>
+        <div id="listaAvaliacoesModal" class="lista-avaliacoes-modal"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ========================================================================
        MODAL: INSTALAR O APLICATIVO (PWA)
        ======================================================================== -->
@@ -452,8 +661,11 @@
     </div>
   </div>
 
+  <!-- ========================================================================
+       MODAL: CONTA DO CLIENTE (ENTRAR / CADASTRAR COM ENDEREÇO ESTRUTURADO E DATA DE NASCIMENTO)
+       ======================================================================== -->
   <div id="modalContaCliente" class="modal-cliente-overlay" aria-hidden="true">
-    <div class="modal-cliente-caixa" role="dialog" aria-labelledby="tituloModalCliente">
+    <div class="modal-cliente-caixa" style="max-width: 500px;" role="dialog" aria-labelledby="tituloModalCliente">
       <div class="modal-cliente-topo">
         <h2 id="tituloModalCliente">Minha Conta</h2>
         <button type="button" id="btnFecharModalCliente" class="btn-fechar-carrinho" aria-label="Fechar">
@@ -502,11 +714,23 @@
           </p>
         </form>
 
-        <!-- 2. Formulário de Cadastro do Cliente -->
+        <!-- 2. Formulário de Cadastro do Cliente (Com Data de Nascimento e Seletores de Endereço) -->
         <form id="formCadastroCliente" style="display: none;" autocomplete="on">
           <div class="campo-cliente">
             <label for="cadClienteNome">Nome completo *</label>
             <input type="text" id="cadClienteNome" required maxlength="120" placeholder="Seu nome completo" autocomplete="name" />
+          </div>
+
+          <div class="grade-campos-cliente-dupla">
+            <div class="campo-cliente">
+              <label for="cadClienteDataNasc">Data de Nascimento * (análise +18)</label>
+              <input type="date" id="cadClienteDataNasc" required autocomplete="bday" />
+            </div>
+
+            <div class="campo-cliente">
+              <label for="cadClienteWhatsapp">WhatsApp com DDD *</label>
+              <input type="tel" id="cadClienteWhatsapp" required maxlength="25" placeholder="(71) 99999-9999" autocomplete="tel" />
+            </div>
           </div>
 
           <div class="campo-cliente">
@@ -514,14 +738,90 @@
             <input type="email" id="cadClienteEmail" required maxlength="160" placeholder="seuemail@exemplo.com" autocomplete="email" />
           </div>
 
-          <div class="campo-cliente">
-            <label for="cadClienteWhatsapp">WhatsApp com DDD *</label>
-            <input type="tel" id="cadClienteWhatsapp" required maxlength="25" placeholder="(71) 99999-9999" autocomplete="tel" />
+          <div class="divisor-endereco-cliente">📍 Endereço de Entrega</div>
+
+          <div class="grade-campos-cliente-dupla">
+            <div class="campo-cliente">
+              <label for="cadClientePais">País *</label>
+              <select id="cadClientePais" class="select-padrao-cliente" required>
+                <option value="Brasil" selected>Brasil</option>
+              </select>
+            </div>
+
+            <div class="campo-cliente">
+              <label for="cadClienteEstado">Estado (UF) *</label>
+              <select id="cadClienteEstado" class="select-padrao-cliente" required>
+                <option value="BA" selected>Bahia (BA)</option>
+                <option value="AC">Acre (AC)</option>
+                <option value="AL">Alagoas (AL)</option>
+                <option value="AP">Amapá (AP)</option>
+                <option value="AM">Amazonas (AM)</option>
+                <option value="CE">Ceará (CE)</option>
+                <option value="DF">Distrito Federal (DF)</option>
+                <option value="ES">Espírito Santo (ES)</option>
+                <option value="GO">Goiás (GO)</option>
+                <option value="MA">Maranhão (MA)</option>
+                <option value="MT">Mato Grosso (MT)</option>
+                <option value="MS">Mato Grosso do Sul (MS)</option>
+                <option value="MG">Minas Gerais (MG)</option>
+                <option value="PA">Pará (PA)</option>
+                <option value="PB">Paraíba (PB)</option>
+                <option value="PR">Paraná (PR)</option>
+                <option value="PE">Pernambuco (PE)</option>
+                <option value="PI">Piauí (PI)</option>
+                <option value="RJ">Rio de Janeiro (RJ)</option>
+                <option value="RN">Rio Grande do Norte (RN)</option>
+                <option value="RS">Rio Grande do Sul (RS)</option>
+                <option value="RO">Rondônia (RO)</option>
+                <option value="RR">Roraima (RR)</option>
+                <option value="SC">Santa Catarina (SC)</option>
+                <option value="SP">São Paulo (SP)</option>
+                <option value="SE">Sergipe (SE)</option>
+                <option value="TO">Tocantins (TO)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grade-campos-cliente-dupla">
+            <div class="campo-cliente">
+              <label for="cadClienteCidade">Cidade *</label>
+              <select id="cadClienteCidade" class="select-padrao-cliente" required>
+                <option value="Salvador" selected>Salvador</option>
+                <option value="Lauro de Freitas">Lauro de Freitas</option>
+                <option value="Camaçari">Camaçari</option>
+                <option value="Simões Filho">Simões Filho</option>
+                <option value="Candeias">Candeias</option>
+                <option value="Feira de Santana">Feira de Santana</option>
+                <option value="__outra__">Outra cidade (digitar)</option>
+              </select>
+              <input
+                type="text"
+                id="cadClienteCidadeOutra"
+                placeholder="Digite o nome da sua cidade"
+                style="display: none; margin-top: 6px;"
+              />
+            </div>
+
+            <div class="campo-cliente">
+              <label for="cadClienteBairro">Bairro *</label>
+              <select id="cadClienteBairro" class="select-padrao-cliente" required></select>
+              <input
+                type="text"
+                id="cadClienteBairroOutro"
+                placeholder="Digite o nome do seu bairro"
+                style="display: none; margin-top: 6px;"
+              />
+            </div>
           </div>
 
           <div class="campo-cliente">
-            <label for="cadClienteEndereco">Endereço completo de entrega (Rua, nº e Bairro) *</label>
-            <input type="text" id="cadClienteEndereco" required minlength="5" maxlength="200" placeholder="Ex.: Rua X, nº 10, Bairro Y" autocomplete="street-address" />
+            <label for="cadClienteRua">Rua e Número *</label>
+            <input type="text" id="cadClienteRua" required maxlength="140" placeholder="Ex.: Rua das Flores, nº 120" autocomplete="street-address" />
+          </div>
+
+          <div class="campo-cliente">
+            <label for="cadClienteComplemento">Complemento (opcional)</label>
+            <input type="text" id="cadClienteComplemento" maxlength="120" placeholder="Opcional: Apto, Bloco, Casa, Ponto de referência..." />
           </div>
 
           <div class="campo-cliente">
@@ -537,14 +837,29 @@
         <!-- 3. Painel do Cliente Logado -->
         <div id="painelClienteLogado" style="display: none;">
           <p style="font-size: 0.85rem; color: #606663; margin-bottom: 12px;">
-            Seus dados ficam salvos para agilizar seus pedidos pelo WhatsApp:
+            Seus dados salvos para compras e cálculo de entrega:
           </p>
-          <div style="background: #f7f6f2; border: 1px solid #e6e5e0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.88rem;">
+          <div style="background: #f7f6f2; border: 1px solid #e6e5e0; border-radius: 8px; padding: 14px; margin-bottom: 14px; font-size: 0.88rem;">
             <div style="margin-bottom: 6px;"><strong>Nome:</strong> <span id="perfilClienteNome"></span></div>
+            <div style="margin-bottom: 6px;"><strong>Data de Nascimento:</strong> <span id="perfilClienteDataNasc"></span></div>
             <div style="margin-bottom: 6px;"><strong>E-mail:</strong> <span id="perfilClienteEmail"></span></div>
             <div style="margin-bottom: 6px;"><strong>WhatsApp:</strong> <span id="perfilClienteWhatsapp"></span></div>
             <div><strong>Endereço:</strong> <span id="perfilClienteEndereco"></span></div>
           </div>
+
+          <!-- Caso o cliente tenha conta antiga sem data de nascimento, permite preencher rapidamente -->
+          <div id="blocoAtualizarDataNascLogado" style="display: none; background: #fffbeb; border: 1px solid #facc15; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <label for="inputAtualizarDataNascLogado" style="display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; color: #1c1917;">
+              🔞 Informe sua Data de Nascimento (obrigatório para bebidas alcoólicas):
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <input type="date" id="inputAtualizarDataNascLogado" style="flex: 1; min-height: 40px; padding: 6px 10px; border: 1px solid #d6d3d1; border-radius: 8px;" />
+              <button type="button" id="btnSalvarDataNascLogado" class="btn-submit-cliente" style="width: auto; min-height: 40px; padding: 0 14px;">
+                Salvar
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             id="btnSairContaCliente"
@@ -559,7 +874,7 @@
   </div>
 
   <!-- ========================================================================
-       BOTÃO FLUTUANTE DE WHATSAPP E NOTIFICAÇÃO
+       BOTÃO FLUTUANTE DE WHATSAPP (EXCLUSIVO PARA DÚVIDAS) E NOTIFICAÇÃO
        ======================================================================== -->
   <a
     id="btnWhatsappFlutuante"
@@ -567,9 +882,9 @@
     target="_blank"
     rel="noopener noreferrer"
     class="btn-whatsapp-flutuante"
-    aria-label="Atendimento via WhatsApp"
+    aria-label="Tirar dúvidas pelo WhatsApp"
   >
-    <span>Atendimento WhatsApp</span>
+    <span>💬 Dúvidas? WhatsApp</span>
   </a>
 
   <div id="toastNotificacao" class="toast-notificacao" role="status" aria-live="polite"></div>

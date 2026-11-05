@@ -219,6 +219,27 @@
         <input type="hidden" id="produtoIdInput" />
         <div id="alertaFormProduto" class="alerta-erro" style="display: none;"></div>
 
+        <!-- Importador Inteligente por Link -->
+        <div class="box-importar-link-admin">
+          <label for="inputLinkImportarProduto" class="form-label">
+            🔗 Importar informações gerais por link (Mercado Livre, Shopee, Amazon, Magalu, etc.)
+          </label>
+          <div class="linha-importar-link-admin">
+            <input
+              type="url"
+              id="inputLinkImportarProduto"
+              class="form-input"
+              placeholder="Cole aqui o link do produto para organizar nome, descrição e fotos..."
+            />
+            <button type="button" id="btnImportarLinkProduto" class="btn-importar-link-admin">
+              ⚡ Extrair e Organizar
+            </button>
+          </div>
+          <small id="feedbackImportarLink" class="form-ajuda">
+            Extrai apenas as informações gerais e importantes do produto (sem copiar códigos ou IDs da outra loja).
+          </small>
+        </div>
+
         <div class="form-grupo">
           <label for="prodNome" class="form-label">Nome do produto *</label>
           <input type="text" id="prodNome" class="form-input" required maxlength="160" placeholder="Ex.: Garrafa Térmica Inox 1L" />
@@ -239,7 +260,7 @@
               id="prodSubcategoria"
               class="form-input"
               list="sugestoesSubcategoria"
-              placeholder="Ex.: Cozinha, Quarto, Masculino, Feminino..."
+              placeholder="Ex.: Cozinha, Quarto, Masculino, Bebidas Alcoólicas..."
               maxlength="80"
             />
             <datalist id="sugestoesSubcategoria"></datalist>
@@ -252,32 +273,38 @@
         </div>
 
         <div class="form-grupo">
-          <label for="prodDescricao" class="form-label">Descrição pública</label>
-          <textarea id="prodDescricao" class="form-textarea" placeholder="Detalhes principais, tamanho, voltagem..."></textarea>
+          <label for="prodDescricao" class="form-label">Descrição pública organizada</label>
+          <textarea id="prodDescricao" class="form-textarea" placeholder="Detalhes principais, tamanho, voltagem, características gerais..."></textarea>
         </div>
 
-        <!-- Envio de Foto -->
+        <!-- Envio de Fotos Ilimitadas -->
         <div class="form-grupo">
-          <label for="prodArquivoFoto" class="form-label">Foto do produto (enviar arquivo ou colar endereço)</label>
-          <input type="file" id="prodArquivoFoto" class="form-input" accept="image/jpeg,image/png,image/webp,image/gif" />
-          <small class="form-ajuda">Envie uma foto do celular ou computador (máx. 5 MB) ou cole um endereço abaixo:</small>
-          <div class="preview-foto-box">
-            <img id="previewFotoProduto" class="preview-foto-img" src="" alt="Prévia da foto" />
-            <input type="url" id="prodFotoUrl" class="form-input" placeholder="https://..." />
+          <label for="prodArquivoFoto" class="form-label">📸 Fotos do produto (Sem limites — envie várias fotos ou adicione links)</label>
+          <input type="file" id="prodArquivoFoto" class="form-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple />
+          <small class="form-ajuda">Você pode selecionar várias fotos de uma vez do celular/computador ou colar quantos links de fotos quiser abaixo:</small>
+          <div class="preview-foto-box" style="margin-top: 8px;">
+            <img id="previewFotoProduto" class="preview-foto-img" src="" alt="Prévia da foto principal" />
+            <div style="flex: 1; display: flex; gap: 6px;">
+              <input type="url" id="prodFotoUrl" class="form-input" placeholder="Cole o link da foto (https://...) e clique em + Foto" />
+              <button type="button" id="btnAdicionarFotoUrl" class="btn-secundario-admin" style="white-space: nowrap;">
+                ➕ + Foto
+              </button>
+            </div>
           </div>
+          <div id="listaFotosProdutoAdmin" class="lista-fotos-admin-grid"></div>
         </div>
 
-        <!-- Preços Públicos e Pesquisa de Mercado -->
-        <div class="divisor-secao-form">📊 Preço de Venda e Pesquisa de Mercado (Públicos)</div>
+        <!-- Preço de Venda e Pesquisa de Mercado (Comparação exclusiva do Admin) -->
+        <div class="divisor-secao-form">💰 Preço de Venda (Público) e Pesquisa de Mercado (Exclusivo Admin)</div>
 
         <div class="form-grade-dupla">
           <div class="form-grupo">
-            <label for="prodPrecoVenda" class="form-label">Preço de Venda (R$) *</label>
+            <label for="prodPrecoVenda" class="form-label">Preço de Venda na Loja (R$) *</label>
             <input type="number" id="prodPrecoVenda" class="form-input" required min="0" step="0.01" placeholder="59.90" />
           </div>
 
           <div class="form-grupo">
-            <label for="prodPrecoMedio" class="form-label">Preço Médio no Mercado (R$)</label>
+            <label for="prodPrecoMedio" class="form-label form-label-restrito">Preço Médio no Mercado (R$ — Só Admin vê)</label>
             <input type="number" id="prodPrecoMedio" class="form-input" min="0" step="0.01" placeholder="79.90" />
           </div>
         </div>
@@ -316,6 +343,11 @@
           <label class="checkbox-label">
             <input type="checkbox" id="prodDestaque" />
             <span>⭐ Produto em Destaque</span>
+          </label>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="prodMaiorIdade" />
+            <span>🔞 Bebida Alcoólica / +18 anos (exige verificação de idade)</span>
           </label>
         </div>
 

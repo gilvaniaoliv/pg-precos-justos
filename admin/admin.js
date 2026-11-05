@@ -60,6 +60,12 @@
       slug: "kits-e-promocoes",
       subcategorias: ["Kits Presente Masculino", "Kits Presente Feminino", "Kits para Casa", "Queima de Estoque"],
       ordem: 7
+    },
+    {
+      nome: "Bebidas",
+      slug: "bebidas",
+      subcategorias: ["Bebidas Alcoólicas", "Refrigerantes e Sucos", "Águas e Energéticos"],
+      ordem: 8
     }
   ];
 
@@ -72,6 +78,7 @@
     todasVendas: [],
     clientes: [],
     areasEntrega: [],
+    fotosProdutoModal: [],
     mesRelatorioSelecionado: "",
     busca: "",
     categoriaFiltro: "todas",
@@ -860,8 +867,272 @@
   }
 
   // ==========================================================================
-  // 7. MODAL ADICIONAR / EDITAR PRODUTO + UPLOAD DE FOTO NO STORAGE
+  // 7. MODAL ADICIONAR / EDITAR PRODUTO + FOTOS ILIMITADAS + IMPORTADOR POR LINK
   // ==========================================================================
+
+  function renderizarFotosProdutoAdmin() {
+    const container = document.getElementById("listaFotosProdutoAdmin");
+    const imgPreview = document.getElementById("previewFotoProduto");
+    if (!container) return;
+
+    container.textContent = "";
+
+    const fotos = estado.fotosProdutoModal || [];
+    if (imgPreview) {
+      imgPreview.src = fotos[0] || obterFotoPlaceholder();
+    }
+
+    fotos.forEach((url, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-foto-admin" + (idx === 0 ? " principal" : "");
+      card.title = idx === 0 ? "Foto Principal (capa)" : "Toque na imagem para definir como principal";
+
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = `Foto ${idx + 1}`;
+      img.style.cursor = "pointer";
+      img.addEventListener("click", () => {
+        // Move esta foto para a posição 0 (principal)
+        const escolhida = estado.fotosProdutoModal.splice(idx, 1)[0];
+        estado.fotosProdutoModal.unshift(escolhida);
+        renderizarFotosProdutoAdmin();
+      });
+      card.appendChild(img);
+
+      const btnRem = document.createElement("button");
+      btnRem.type = "button";
+      btnRem.className = "btn-remover-foto-admin";
+      btnRem.textContent = "✕";
+      btnRem.title = "Remover esta foto";
+      btnRem.addEventListener("click", (e) => {
+        e.stopPropagation();
+        estado.fotosProdutoModal.splice(idx, 1);
+        renderizarFotosProdutoAdmin();
+      });
+      card.appendChild(btnRem);
+
+      if (idx === 0) {
+        const tag = document.createElement("span");
+        tag.className = "tag-foto-principal-admin";
+        tag.textContent = "Principal";
+        card.appendChild(tag);
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  function adicionarFotoUrlNoModal() {
+    const inputUrl = document.getElementById("prodFotoUrl");
+    if (!inputUrl) return;
+    const url = limparTexto(inputUrl.value, 1000);
+    if (!url || !/^https?:\/\//i.test(url)) {
+      mostrarToast("Informe um link de imagem válido começando com http:// ou https://");
+      return;
+    }
+    if (!estado.fotosProdutoModal.includes(url)) {
+      estado.fotosProdutoModal.push(url);
+    }
+    inputUrl.value = "";
+    renderizarFotosProdutoAdmin();
+    mostrarToast("📸 Foto adicionada à galeria do produto!");
+  }
+
+  /**
+   * Limpa títulos de lojas externas (remove IDs tipo MLB-123456, SKUs, nomes de sites e códigos)
+   */
+  function limparTituloImportadoDeLink(tituloBruto) {
+    let t = String(tituloBruto || "").trim();
+    // Remove sufixos de lojas conhecidas
+    t = t.replace(/\s*[\|\-–—]\s*(Mercado Livre|MercadoLivre|Shopee.*|Amazon\.com\.br.*|Amazon.*|Magazine Luiza.*|Magalu.*|Americanas.*|Casas Bahia.*|AliExpress.*)$/i, "");
+    // Remove códigos de anúncio como MLB12345678, MLB-12345678, SKU: 12345, Cód. 12345, Ref: 1234
+    t = t.replace(/\bMLB-?\d+\b/gi, "");
+    t = t.replace(/\b(SKU|C[oó]d\.?|C[oó]digo|Ref\.?|ID)\s*[:#\-]?\s*[A-Z0-9\-_]+\b/gi, "");
+    t = t.replace(/\(\s*\)/g, "");
+    t = t.replace(/\s{2,}/g, " ").trim();
+    return limparTexto(t, 160);
+  }
+
+  /**
+   * Organiza e limpa a descrição extraída de um link externo, mantendo apenas dados gerais do produto
+   */
+  function organizarDescricaoImportada(descBruta, tituloLimpo) {
+    let d = String(descBruta || "").trim();
+    // Remove frases promocionais ou específicas do vendedor/site externo
+    const padroesRemover = [
+      /compre\s+online[^.!\n]*[.!\n]?/gi,
+      /frete\s+gr[aá]tis[^.!\n]*[.!\n]?/gi,
+      /parcele\s+em\s+at[eé][^.!\n]*[.!\n]?/gi,
+      /mercado\s+livre[^.!\n]*[.!\n]?/gi,
+      /shopee[^.!\n]*[.!\n]?/gi,
+      /amazon\.com\.br[^.!\n]*[.!\n]?/gi,
+      /encontre\s+mais\s+produtos[^.!\n]*[.!\n]?/gi,
+      /\bMLB-?\d+\b/gi,
+      /\b(SKU|C[oó]d\.?|C[oó]digo|ID\s+do\s+an[uú]ncio)\s*[:#\-]?\s*[A-Z0-9\-_]+\b/gi
+    ];
+    padroesRemover.forEach((rx) => {
+      d = d.replace(rx, "");
+    });
+    d = d.replace(/\s{2,}/g, " ").trim();
+
+    if (!d || d.length < 10) {
+      return tituloLimpo
+        ? `${tituloLimpo}.\n• Produto selecionado com excelente qualidade e ótimo custo-benefício.\n• Disponível para pronta entrega ou retirada.`
+        : "";
+    }
+
+    // Organiza em tópicos limpos se for um texto corrido longo
+    const frases = d
+      .split(/(?<=[.!?])\s+/)
+      .map((f) => f.trim())
+      .filter((f) => f.length > 4);
+
+    if (frases.length > 1) {
+      return limparTexto(frases.map((f) => `• ${f}`).join("\n"), 950);
+    }
+    return limparTexto(d, 950);
+  }
+
+  /**
+   * Extrai nome legível a partir da própria URL (slug) caso o site bloqueie leitura externa
+   */
+  function extrairTituloDoSlugUrl(urlStr) {
+    try {
+      const u = new URL(urlStr);
+      const partes = u.pathname
+        .split("/")
+        .map((p) => decodeURIComponent(p))
+        .filter((p) => p.length > 3 && !/^(p|dp|gp|product|item|produto)$/i.test(p));
+      if (partes.length === 0) return "";
+      // Pega a parte mais descritiva do caminho
+      const melhor = partes.sort((a, b) => b.length - a.length)[0];
+      let limpo = melhor
+        .replace(/MLB-?\d+/gi, "")
+        .replace(/i\.\d+\.\d+/gi, "")
+        .replace(/_JM$/i, "")
+        .replace(/\.html?$/i, "")
+        .replace(/[-_]+/g, " ")
+        .trim();
+      limpo = limpo.replace(/\b\w/g, (l) => l.toUpperCase());
+      return limparTituloImportadoDeLink(limpo);
+    } catch (_) {
+      return "";
+    }
+  }
+
+  async function importarDadosPorLinkProduto() {
+    const inputLink = document.getElementById("inputLinkImportarProduto");
+    const btnImportar = document.getElementById("btnImportarLinkProduto");
+    const feedback = document.getElementById("feedbackImportarLink");
+    const url = String(inputLink?.value || "").trim();
+
+    if (!url || !/^https?:\/\//i.test(url)) {
+      mostrarToast("Cole um link válido começando com https://");
+      inputLink?.focus();
+      return;
+    }
+
+    try {
+      if (btnImportar) {
+        btnImportar.disabled = true;
+        btnImportar.textContent = "⏳ Extraindo...";
+      }
+      if (feedback) {
+        feedback.textContent = "Analisando link e organizando informações gerais do produto...";
+      }
+
+      let tituloExtraido = "";
+      let descricaoExtraida = "";
+      let fotosExtraidas = [];
+      let precoReferencia = null;
+
+      // 1. Tenta consultar metadados estruturados via Microlink API (OpenGraph / JSON-LD)
+      try {
+        const resp = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+        if (resp.ok) {
+          const json = await resp.json();
+          const dados = json?.data || {};
+          if (dados.title) tituloExtraido = dados.title;
+          if (dados.description) descricaoExtraida = dados.description;
+          if (dados.image?.url && /^https?:\/\//i.test(dados.image.url)) {
+            fotosExtraidas.push(dados.image.url);
+          }
+        }
+      } catch (_) {}
+
+      // 2. Fallback inteligente pelo slug da URL se o título vier vazio ou genérico
+      if (
+        !tituloExtraido ||
+        /^(Mercado Livre|Shopee|Amazon|login|captcha|aten[cç][aã]o)/i.test(tituloExtraido.trim())
+      ) {
+        tituloExtraido = extrairTituloDoSlugUrl(url);
+      }
+
+      const tituloLimpo = limparTituloImportadoDeLink(tituloExtraido);
+      const descricaoOrganizada = organizarDescricaoImportada(descricaoExtraida, tituloLimpo);
+
+      if (tituloLimpo) {
+        document.getElementById("prodNome").value = tituloLimpo;
+      }
+      if (descricaoOrganizada) {
+        document.getElementById("prodDescricao").value = descricaoOrganizada;
+      }
+
+      if (fotosExtraidas.length > 0) {
+        fotosExtraidas.forEach((fUrl) => {
+          if (!estado.fotosProdutoModal.includes(fUrl)) {
+            estado.fotosProdutoModal.push(fUrl);
+          }
+        });
+        renderizarFotosProdutoAdmin();
+      }
+
+      // Registra apenas o domínio como fonte de pesquisa para controle interno do Admin (sem colar IDs na vitrine)
+      try {
+        const dominio = new URL(url).hostname.replace(/^www\./i, "");
+        const campoFontes = document.getElementById("prodFontesPesquisa");
+        if (campoFontes && !campoFontes.value) {
+          campoFontes.value = `Referência consultada em: ${dominio}`;
+        }
+      } catch (_) {}
+
+      if (precoReferencia && !document.getElementById("prodPrecoMedio").value) {
+        document.getElementById("prodPrecoMedio").value = Number(precoReferencia).toFixed(2);
+      }
+
+      // Detecta automaticamente se é bebida alcoólica (+18)
+      const textoCompleto = `${tituloLimpo} ${descricaoOrganizada}`.toLowerCase();
+      if (
+        textoCompleto.includes("cerveja") ||
+        textoCompleto.includes("vinho") ||
+        textoCompleto.includes("whisky") ||
+        textoCompleto.includes("vodka") ||
+        textoCompleto.includes("cachaça") ||
+        textoCompleto.includes("licor") ||
+        textoCompleto.includes("alcoól")
+      ) {
+        const chk18 = document.getElementById("prodMaiorIdade");
+        if (chk18) chk18.checked = true;
+      }
+
+      if (feedback) {
+        feedback.textContent = tituloLimpo
+          ? "✅ Informações gerais extraídas e organizadas! Confira os campos abaixo e defina seu preço."
+          : "⚠️ O site externo protegeu parte dos dados. Preencha ou ajuste os campos abaixo.";
+      }
+      mostrarToast("⚡ Informações do produto extraídas e organizadas!");
+    } catch (erro) {
+      console.error("Erro ao importar link:", erro);
+      if (feedback) {
+        feedback.textContent = "Não foi possível ler todos os dados automaticamente deste link.";
+      }
+    } finally {
+      if (btnImportar) {
+        btnImportar.disabled = false;
+        btnImportar.textContent = "⚡ Extrair e Organizar";
+      }
+    }
+  }
 
   function abrirModalProduto(produto = null) {
     const modal = document.getElementById("modalProduto");
@@ -869,9 +1140,16 @@
     const alerta = document.getElementById("alertaFormProduto");
     const btnExcluir = document.getElementById("btnExcluirProdutoModal");
     const inputArquivo = document.getElementById("prodArquivoFoto");
+    const inputLinkImportar = document.getElementById("inputLinkImportarProduto");
+    const feedbackImportar = document.getElementById("feedbackImportarLink");
 
     if (alerta) alerta.style.display = "none";
     if (inputArquivo) inputArquivo.value = "";
+    if (inputLinkImportar) inputLinkImportar.value = "";
+    if (feedbackImportar) {
+      feedbackImportar.textContent =
+        "Extrai apenas as informações gerais e importantes do produto (sem copiar códigos ou IDs da outra loja).";
+    }
 
     atualizarSelectsCategorias();
 
@@ -885,9 +1163,23 @@
       if (elSub) elSub.value = produto.subcategoria || "";
       document.getElementById("prodEstoque").value = Number(produto.estoque) || 0;
       document.getElementById("prodDescricao").value = produto.descricao || "";
-      document.getElementById("prodFotoUrl").value = produto.foto_url || "";
-      document.getElementById("previewFotoProduto").src =
-        produto.foto_url || obterFotoPlaceholder();
+      document.getElementById("prodFotoUrl").value = "";
+
+      const listaFotos = [];
+      if (produto.foto_url && /^https?:\/\//i.test(String(produto.foto_url).trim())) {
+        listaFotos.push(String(produto.foto_url).trim());
+      }
+      if (Array.isArray(produto.fotos_urls)) {
+        produto.fotos_urls.forEach((u) => {
+          const limpa = String(u || "").trim();
+          if (/^https?:\/\//i.test(limpa) && !listaFotos.includes(limpa)) {
+            listaFotos.push(limpa);
+          }
+        });
+      }
+      estado.fotosProdutoModal = listaFotos;
+      renderizarFotosProdutoAdmin();
+
       document.getElementById("prodPrecoVenda").value = produto.preco_venda ?? "";
       document.getElementById("prodPrecoMedio").value =
         produto.preco_medio_mercado ?? "";
@@ -898,6 +1190,8 @@
         produto.fontes_pesquisa || "";
       document.getElementById("prodAtivo").checked = Boolean(produto.ativo);
       document.getElementById("prodDestaque").checked = Boolean(produto.destaque);
+      const chkMaior18 = document.getElementById("prodMaiorIdade");
+      if (chkMaior18) chkMaior18.checked = Boolean(produto.maior_idade);
       if (btnExcluir) btnExcluir.style.display = "inline-flex";
     } else {
       if (titulo) titulo.textContent = "➕ Adicionar Novo Produto";
@@ -911,7 +1205,8 @@
       document.getElementById("prodEstoque").value = 1;
       document.getElementById("prodDescricao").value = "";
       document.getElementById("prodFotoUrl").value = "";
-      document.getElementById("previewFotoProduto").src = obterFotoPlaceholder();
+      estado.fotosProdutoModal = [];
+      renderizarFotosProdutoAdmin();
       document.getElementById("prodPrecoVenda").value = "";
       document.getElementById("prodPrecoMedio").value = "";
       document.getElementById("prodPrecoCusto").value = "";
@@ -919,6 +1214,8 @@
       document.getElementById("prodFontesPesquisa").value = "";
       document.getElementById("prodAtivo").checked = true;
       document.getElementById("prodDestaque").checked = false;
+      const chkMaior18 = document.getElementById("prodMaiorIdade");
+      if (chkMaior18) chkMaior18.checked = false;
       if (btnExcluir) btnExcluir.style.display = "none";
     }
 
@@ -936,38 +1233,49 @@
     }
   }
 
-  async function fazerUploadFotoSeNecessario() {
+  async function fazerUploadMultiplasFotosSeNecessario() {
     const inputArquivo = document.getElementById("prodArquivoFoto");
-    const urlDigitada = limparTexto(document.getElementById("prodFotoUrl").value, 1000);
+    const urlDigitada = limparTexto(document.getElementById("prodFotoUrl")?.value || "", 1000);
+    const urlsFinais = [...(estado.fotosProdutoModal || [])];
 
-    if (!inputArquivo || !inputArquivo.files || inputArquivo.files.length === 0) {
-      return urlDigitada;
+    if (urlDigitada && /^https?:\/\//i.test(urlDigitada) && !urlsFinais.includes(urlDigitada)) {
+      urlsFinais.push(urlDigitada);
     }
 
-    const arquivo = inputArquivo.files[0];
-    if (arquivo.size > 5 * 1024 * 1024) {
-      throw new Error("A imagem escolhida excede o limite máximo de 5MB.");
+    if (inputArquivo && inputArquivo.files && inputArquivo.files.length > 0) {
+      const arquivos = Array.from(inputArquivo.files);
+      const bucket = CFG.STORAGE_BUCKET || "produtos-fotos";
+
+      for (const arquivo of arquivos) {
+        if (arquivo.size > 5 * 1024 * 1024) {
+          throw new Error(`A imagem "${arquivo.name}" excede o limite máximo de 5MB.`);
+        }
+        if (estado.modoDemo) {
+          urlsFinais.push(URL.createObjectURL(arquivo));
+        } else {
+          const extensao = (arquivo.name.split(".").pop() || "jpg")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+          const nomeUnico = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`;
+
+          const { error: uploadError } = await supabaseClient.storage
+            .from(bucket)
+            .upload(nomeUnico, arquivo, {
+              cacheControl: "3600",
+              upsert: false
+            });
+
+          if (uploadError) throw uploadError;
+
+          const { data } = supabaseClient.storage.from(bucket).getPublicUrl(nomeUnico);
+          if (data?.publicUrl) {
+            urlsFinais.push(data.publicUrl);
+          }
+        }
+      }
     }
 
-    if (estado.modoDemo) {
-      return URL.createObjectURL(arquivo);
-    }
-
-    const bucket = CFG.STORAGE_BUCKET || "produtos-fotos";
-    const extensao = (arquivo.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const nomeUnico = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`;
-
-    const { error: uploadError } = await supabaseClient.storage
-      .from(bucket)
-      .upload(nomeUnico, arquivo, {
-        cacheControl: "3600",
-        upsert: false
-      });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabaseClient.storage.from(bucket).getPublicUrl(nomeUnico);
-    return data.publicUrl;
+    return urlsFinais;
   }
 
   async function salvarProdutoSubmit(evento) {
@@ -990,8 +1298,6 @@
     const precoVenda = parseFloat(document.getElementById("prodPrecoVenda").value);
     const precoMedioRaw = document.getElementById("prodPrecoMedio").value;
     const precoMedio = precoMedioRaw !== "" ? parseFloat(precoMedioRaw) : null;
-    // A data da pesquisa não é mais digitada: é registrada automaticamente
-    // como hoje sempre que o preço médio for informado ou alterado.
     const produtoAnterior = idExistente
       ? estado.produtos.find((p) => String(p.id) === String(idExistente))
       : null;
@@ -1012,6 +1318,7 @@
 
     const ativo = document.getElementById("prodAtivo").checked;
     const destaque = document.getElementById("prodDestaque").checked;
+    const maiorIdade = Boolean(document.getElementById("prodMaiorIdade")?.checked);
 
     if (!nome) {
       alerta.textContent = "Informe o nome do produto.";
@@ -1031,14 +1338,15 @@
         btnSalvar.textContent = "Salvando...";
       }
 
-      const fotoUrlFinal = await fazerUploadFotoSeNecessario();
+      const todasFotosUrls = await fazerUploadMultiplasFotosSeNecessario();
+      const fotoUrlPrincipal = todasFotosUrls[0] || "";
 
-      const dadosProduto = {
+      const dadosProdutoBase = {
         nome,
         descricao,
         categoria_id: categoriaId,
         subcategoria,
-        foto_url: fotoUrlFinal,
+        foto_url: fotoUrlPrincipal,
         preco_venda: Number(precoVenda.toFixed(2)),
         preco_medio_mercado: precoMedio !== null ? Number(precoMedio.toFixed(2)) : null,
         data_pesquisa: dataPesquisa,
@@ -1050,27 +1358,53 @@
         ativo
       };
 
+      const dadosProdutoCompleto = {
+        ...dadosProdutoBase,
+        fotos_urls: todasFotosUrls,
+        maior_idade: maiorIdade
+      };
+
       if (estado.modoDemo) {
         if (idExistente) {
           const idx = estado.produtos.findIndex((p) => p.id === idExistente);
           if (idx !== -1) {
-            estado.produtos[idx] = { ...estado.produtos[idx], ...dadosProduto };
+            estado.produtos[idx] = { ...estado.produtos[idx], ...dadosProdutoCompleto };
           }
         } else {
           estado.produtos.unshift({
             id: "demo-" + Date.now(),
-            ...dadosProduto
+            ...dadosProdutoCompleto
           });
         }
       } else {
         if (idExistente) {
-          const { error } = await supabaseClient
+          let { error } = await supabaseClient
             .from("produtos")
-            .update(dadosProduto)
+            .update(dadosProdutoCompleto)
             .eq("id", idExistente);
+          // Fallback caso as colunas fotos_urls / maior_idade ainda não tenham sido criadas no banco
+          if (
+            error &&
+            (String(error.message || "").includes("fotos_urls") ||
+              String(error.message || "").includes("maior_idade"))
+          ) {
+            const retry = await supabaseClient
+              .from("produtos")
+              .update(dadosProdutoBase)
+              .eq("id", idExistente);
+            error = retry.error;
+          }
           if (error) throw error;
         } else {
-          const { error } = await supabaseClient.from("produtos").insert([dadosProduto]);
+          let { error } = await supabaseClient.from("produtos").insert([dadosProdutoCompleto]);
+          if (
+            error &&
+            (String(error.message || "").includes("fotos_urls") ||
+              String(error.message || "").includes("maior_idade"))
+          ) {
+            const retry = await supabaseClient.from("produtos").insert([dadosProdutoBase]);
+            error = retry.error;
+          }
           if (error) throw error;
         }
       }
@@ -1353,6 +1687,7 @@
     estado.categorias.forEach((cat) => {
       const linha = document.createElement("div");
       linha.className = "carrinho-item";
+      linha.style.alignItems = "flex-start";
 
       const divInfo = document.createElement("div");
       divInfo.style.flex = "1";
@@ -1375,24 +1710,32 @@
         : `${qtdProdutos} ${qtdProdutos === 1 ? "produto" : "produtos"}`;
       divInfo.appendChild(contagem);
 
-      const subs = Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0
-        ? cat.subcategorias
-        : (CATEGORIAS_ORGANIZADAS_PADRAO.find((p) => p.slug === cat.slug)?.subcategorias || []);
+      const subs =
+        Array.isArray(cat.subcategorias) && cat.subcategorias.length > 0
+          ? cat.subcategorias
+          : CATEGORIAS_ORGANIZADAS_PADRAO.find((p) => p.slug === cat.slug)?.subcategorias || [];
+
+      const arquivadas = Array.isArray(cat.subcategorias_arquivadas)
+        ? cat.subcategorias_arquivadas
+        : [];
+
+      const subTitulo = document.createElement("div");
+      subTitulo.style.cssText = "font-size: 0.78rem; color: #57534e; margin-top: 6px;";
+      subTitulo.textContent =
+        subs.length > 0
+          ? "Subcategorias (toque no nome para arquivar, ✏️ para editar ou ✕ para excluir):"
+          : "Nenhuma subcategoria ainda. Adicione abaixo:";
+      divInfo.appendChild(subTitulo);
 
       if (subs.length > 0) {
-        // Cada subcategoria vira um botão: clique para arquivar ou desarquivar
-        const arquivadas = Array.isArray(cat.subcategorias_arquivadas)
-          ? cat.subcategorias_arquivadas
-          : [];
-        const subTitulo = document.createElement("div");
-        subTitulo.style.cssText = "font-size: 0.78rem; color: #57534e; margin-top: 6px;";
-        subTitulo.textContent = "Subcategorias (toque para arquivar/desarquivar):";
-        divInfo.appendChild(subTitulo);
-
         const subLista = document.createElement("div");
         subLista.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;";
         subs.forEach((sub) => {
           const estaArquivada = arquivadas.includes(sub);
+
+          const grupoChip = document.createElement("div");
+          grupoChip.className = "chip-subcategoria-grupo";
+
           const chip = document.createElement("button");
           chip.type = "button";
           chip.className = "chip-subcategoria" + (estaArquivada ? " arquivada" : "");
@@ -1401,10 +1744,62 @@
             ? "Arquivada (oculta na vitrine). Clique para desarquivar."
             : "Clique para arquivar (ocultar da vitrine sem apagar).";
           chip.addEventListener("click", () => alternarArquivamentoSubcategoria(cat, sub));
-          subLista.appendChild(chip);
+
+          const btnEditSub = document.createElement("button");
+          btnEditSub.type = "button";
+          btnEditSub.className = "btn-acao-sub";
+          btnEditSub.textContent = "✏️";
+          btnEditSub.title = `Editar nome da subcategoria "${sub}"`;
+          btnEditSub.addEventListener("click", () => editarSubcategoria(cat, sub, subs));
+
+          const btnDelSub = document.createElement("button");
+          btnDelSub.type = "button";
+          btnDelSub.className = "btn-acao-sub excluir";
+          btnDelSub.textContent = "✕";
+          btnDelSub.title = `Excluir subcategoria "${sub}"`;
+          btnDelSub.addEventListener("click", () => excluirSubcategoria(cat, sub, subs));
+
+          grupoChip.appendChild(chip);
+          grupoChip.appendChild(btnEditSub);
+          grupoChip.appendChild(btnDelSub);
+          subLista.appendChild(grupoChip);
         });
         divInfo.appendChild(subLista);
       }
+
+      // Linha rápida para adicionar nova subcategoria nesta categoria
+      const linhaNovaSub = document.createElement("div");
+      linhaNovaSub.className = "linha-nova-sub-admin";
+      const inputNovaSub = document.createElement("input");
+      inputNovaSub.type = "text";
+      inputNovaSub.placeholder = "Nova subcategoria...";
+      inputNovaSub.maxLength = 50;
+      const btnAddSub = document.createElement("button");
+      btnAddSub.type = "button";
+      btnAddSub.textContent = "➕ Adicionar Sub";
+      btnAddSub.addEventListener("click", () => {
+        adicionarSubcategoriaNaCategoria(cat, inputNovaSub.value, subs);
+        inputNovaSub.value = "";
+      });
+      inputNovaSub.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          adicionarSubcategoriaNaCategoria(cat, inputNovaSub.value, subs);
+          inputNovaSub.value = "";
+        }
+      });
+      linhaNovaSub.appendChild(inputNovaSub);
+      linhaNovaSub.appendChild(btnAddSub);
+      divInfo.appendChild(linhaNovaSub);
+
+      const btnEditarCat = document.createElement("button");
+      btnEditarCat.type = "button";
+      btnEditarCat.className = "btn-secundario-admin";
+      btnEditarCat.style.minHeight = "34px";
+      btnEditarCat.style.padding = "0 10px";
+      btnEditarCat.textContent = "✏️ Editar";
+      btnEditarCat.title = "Renomear esta categoria";
+      btnEditarCat.addEventListener("click", () => editarNomeCategoria(cat));
 
       const btnDel = document.createElement("button");
       btnDel.type = "button";
@@ -1427,6 +1822,7 @@
 
       const botoes = document.createElement("div");
       botoes.style.cssText = "display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;";
+      botoes.appendChild(btnEditarCat);
       botoes.appendChild(btnArquivar);
       botoes.appendChild(btnDel);
 
@@ -1434,6 +1830,132 @@
       linha.appendChild(botoes);
       container.appendChild(linha);
     });
+  }
+
+  async function editarNomeCategoria(cat) {
+    const novoNomeBruto = window.prompt("Novo nome para a categoria:", cat.nome || "");
+    if (novoNomeBruto === null) return;
+    const novoNome = limparTexto(novoNomeBruto, 80);
+    if (!novoNome || novoNome === cat.nome) return;
+
+    const novoSlug = gerarSlug(novoNome) || cat.slug;
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ nome: novoNome, slug: novoSlug })
+          .eq("id", cat.id);
+        if (error) throw error;
+      }
+      cat.nome = novoNome;
+      cat.slug = novoSlug;
+      await carregarDadosAdmin();
+      renderizarListaCategoriasModal();
+      mostrarToast("Categoria renomeada com sucesso!");
+    } catch (erro) {
+      console.error("Erro ao editar categoria:", erro);
+      mostrarToast("Não foi possível renomear a categoria.");
+    }
+  }
+
+  async function adicionarSubcategoriaNaCategoria(cat, nomeSubBruto, subsAtuais) {
+    const novaSub = limparTexto(nomeSubBruto, 50);
+    if (!novaSub) {
+      mostrarToast("Digite o nome da nova subcategoria.");
+      return;
+    }
+    const listaAtual = Array.isArray(subsAtuais) ? [...subsAtuais] : [];
+    if (listaAtual.some((s) => s.toLowerCase() === novaSub.toLowerCase())) {
+      mostrarToast("Esta subcategoria já existe nesta categoria.");
+      return;
+    }
+    const novasSubs = [...listaAtual, novaSub];
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ subcategorias: novasSubs })
+          .eq("id", cat.id);
+        if (error) throw error;
+      }
+      cat.subcategorias = novasSubs;
+      renderizarListaCategoriasModal();
+      atualizarSelectsCategorias();
+      mostrarToast(`Subcategoria "${novaSub}" adicionada em ${cat.nome}!`);
+    } catch (erro) {
+      console.error("Erro ao adicionar subcategoria:", erro);
+      mostrarToast("Não foi possível salvar a nova subcategoria.");
+    }
+  }
+
+  async function editarSubcategoria(cat, subAntiga, subsAtuais) {
+    const novoNomeBruto = window.prompt(
+      `Editar nome da subcategoria "${subAntiga}" em ${cat.nome}:`,
+      subAntiga
+    );
+    if (novoNomeBruto === null) return;
+    const novaSub = limparTexto(novoNomeBruto, 50);
+    if (!novaSub || novaSub === subAntiga) return;
+
+    const novasSubs = (Array.isArray(subsAtuais) ? subsAtuais : []).map((s) =>
+      s === subAntiga ? novaSub : s
+    );
+    const arquivadas = Array.isArray(cat.subcategorias_arquivadas)
+      ? cat.subcategorias_arquivadas.map((s) => (s === subAntiga ? novaSub : s))
+      : [];
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ subcategorias: novasSubs, subcategorias_arquivadas: arquivadas })
+          .eq("id", cat.id);
+        if (error) throw error;
+
+        // Atualiza produtos que usavam o nome antigo da subcategoria
+        await supabaseClient
+          .from("produtos")
+          .update({ subcategoria: novaSub })
+          .eq("categoria_id", cat.id)
+          .eq("subcategoria", subAntiga);
+      }
+      cat.subcategorias = novasSubs;
+      cat.subcategorias_arquivadas = arquivadas;
+      await carregarDadosAdmin();
+      renderizarListaCategoriasModal();
+      mostrarToast(`Subcategoria atualizada para "${novaSub}"!`);
+    } catch (erro) {
+      console.error("Erro ao editar subcategoria:", erro);
+      mostrarToast("Não foi possível renomear a subcategoria.");
+    }
+  }
+
+  async function excluirSubcategoria(cat, subAlvo, subsAtuais) {
+    if (!window.confirm(`Deseja remover a subcategoria "${subAlvo}" de "${cat.nome}"?`)) return;
+    const novasSubs = (Array.isArray(subsAtuais) ? subsAtuais : []).filter((s) => s !== subAlvo);
+    const arquivadas = Array.isArray(cat.subcategorias_arquivadas)
+      ? cat.subcategorias_arquivadas.filter((s) => s !== subAlvo)
+      : [];
+
+    try {
+      if (!estado.modoDemo) {
+        const { error } = await supabaseClient
+          .from("categorias")
+          .update({ subcategorias: novasSubs, subcategorias_arquivadas: arquivadas })
+          .eq("id", cat.id);
+        if (error) throw error;
+      }
+      cat.subcategorias = novasSubs;
+      cat.subcategorias_arquivadas = arquivadas;
+      renderizarListaCategoriasModal();
+      atualizarSelectsCategorias();
+      mostrarToast(`Subcategoria "${subAlvo}" removida.`);
+    } catch (erro) {
+      console.error("Erro ao excluir subcategoria:", erro);
+      mostrarToast("Não foi possível excluir a subcategoria.");
+    }
   }
 
   async function alternarArquivamentoSubcategoria(cat, sub) {
@@ -2418,9 +2940,33 @@
       linhaEnd.style.marginTop = "4px";
       linhaEnd.textContent = `📍 Endereço: ${cli.endereco || "Não informado"}`;
 
+      const linhaIdade = document.createElement("div");
+      linhaIdade.style.fontSize = "0.78rem";
+      linhaIdade.style.marginTop = "3px";
+      if (cli.data_nascimento) {
+        const dNasc = parseDataLocal(cli.data_nascimento);
+        let idade = null;
+        if (dNasc) {
+          const hj = new Date();
+          idade = hj.getFullYear() - dNasc.getFullYear();
+          const m = hj.getMonth() - dNasc.getMonth();
+          if (m < 0 || (m === 0 && hj.getDate() < dNasc.getDate())) idade -= 1;
+        }
+        const maior = idade !== null && idade >= 18;
+        linhaIdade.style.color = maior ? "#0f3d2e" : "#991b1b";
+        linhaIdade.style.fontWeight = "600";
+        linhaIdade.textContent = `🎂 Nascimento: ${formatarDataBR(cli.data_nascimento)}${
+          idade !== null ? ` (${idade} anos — ${maior ? "Maior de 18 ✅" : "Menor de 18 🔞"})` : ""
+        }`;
+      } else {
+        linhaIdade.style.color = "#78716c";
+        linhaIdade.textContent = "🎂 Data de nascimento: não informada";
+      }
+
       info.appendChild(nome);
       info.appendChild(linhaContato);
       info.appendChild(linhaEnd);
+      info.appendChild(linhaIdade);
 
       card.appendChild(info);
 
@@ -2603,6 +3149,12 @@
     document
       .getElementById("btnExcluirProdutoModal")
       ?.addEventListener("click", excluirProdutoAtual);
+    document
+      .getElementById("btnImportarLinkProduto")
+      ?.addEventListener("click", importarDadosPorLinkProduto);
+    document
+      .getElementById("btnAdicionarFotoUrl")
+      ?.addEventListener("click", adicionarFotoUrlNoModal);
 
     // Prévia instantânea de foto no modal
     const inputFotoUrl = document.getElementById("prodFotoUrl");

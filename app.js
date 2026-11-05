@@ -19,11 +19,22 @@
   const CHAVE_STORAGE_CLIENTE = "pg_precos_justos_cliente_logado_v1";
   const CHAVE_STORAGE_CONTAS_LOCAIS = "pg_precos_justos_contas_clientes_v1";
   const CHAVE_STORAGE_AREA_ENTREGA = "pg_precos_justos_area_entrega_v1";
+  const CHAVE_STORAGE_METODO_PAGAMENTO = "pg_precos_justos_metodo_pagamento_v1";
+  const CHAVE_STORAGE_AVALIACOES = "pg_precos_justos_avaliacoes_v1";
   const AREA_FORA_DA_LISTA = "fora";
   const AREA_RETIRADA = "retirada";
   let supabaseInstancia = null;
 
-  // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, etc.)
+  const AREAS_ENTREGA_PADRAO = [
+    { id: "padrao-centro", nome: "Centro / Nazaré / Barris", valor: 8.0, gratis_acima: 120.0 },
+    { id: "padrao-brotas", nome: "Brotas / Cabula / Pernambués", valor: 10.0, gratis_acima: 150.0 },
+    { id: "padrao-pituba", nome: "Pituba / Itaigara / Rio Vermelho / Barra", valor: 12.0, gratis_acima: 160.0 },
+    { id: "padrao-itapua", nome: "Imbuí / Boca do Rio / Stiep / Itapuã", valor: 14.0, gratis_acima: 180.0 },
+    { id: "padrao-suburbio", nome: "Cidade Baixa / Cajazeiras / Subúrbio", valor: 12.0, gratis_acima: 160.0 },
+    { id: "padrao-lauro", nome: "Lauro de Freitas / Região Metropolitana", valor: 18.0, gratis_acima: 220.0 }
+  ];
+
+  // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, Bebidas, etc.)
   const SUBCATEGORIAS_PADRAO_POR_SLUG = {
     "casa-e-comodos": ["Cozinha", "Sala", "Quarto", "Banheiro", "Lavanderia e Limpeza", "Jardim e Varanda"],
     "casa-e-cozinha": ["Cozinha", "Sala", "Quarto", "Banheiro", "Lavanderia e Limpeza", "Jardim e Varanda"],
@@ -35,6 +46,7 @@
     "utilidades-e-ferramentas": ["Ferramentas Manuais", "Elétrica e Iluminação", "Automotivo", "Organização"],
     "infantil-e-brinquedos": ["Meninos", "Meninas", "Bebês", "Jogos e Educativos"],
     "kits-e-promocoes": ["Kits Presente Masculino", "Kits Presente Feminino", "Kits para Casa", "Queima de Estoque"],
+    "bebidas": ["Bebidas Alcoólicas", "Refrigerantes e Sucos", "Águas e Energéticos"],
     "ofertas-da-semana": ["Casa e Cômodos", "Masculino", "Feminino", "Eletrônicos"]
   };
 
@@ -48,8 +60,12 @@
     carrinho: carregarCarrinhoSalvo(),
     clienteLogado: carregarClienteSalvo(),
     acaoPendenteCompra: null,
-    areasEntrega: [],
+    areasEntrega: [...AREAS_ENTREGA_PADRAO],
     areaEntregaSelecionada: carregarAreaEntregaSalva(),
+    metodoPagamentoSelecionado: carregarMetodoPagamentoSalvo(),
+    checkMaiorIdadeConfirmado: false,
+    avaliacoesPorProduto: carregarAvaliacoesLocais(),
+    produtoModalAvaliacaoAtual: null,
     modoDemo: false
   };
 
@@ -375,7 +391,7 @@
       mostrarToast("Não foi possível carregar os produtos no momento.");
     }
 
-    // Áreas de entrega (carregadas à parte: se a tabela ainda não existir, a loja segue normal)
+    // Áreas de entrega (carregadas à parte: se a tabela ainda não existir, usa as áreas padrão da loja)
     try {
       const { data, error } = await supabaseInstancia
         .from("areas_entrega")
@@ -384,11 +400,14 @@
         .order("ordem", { ascending: true })
         .order("nome", { ascending: true });
       if (error) throw error;
-      estado.areasEntrega = data || [];
+      estado.areasEntrega = Array.isArray(data) && data.length > 0 ? data : [...AREAS_ENTREGA_PADRAO];
     } catch (erro) {
-      console.warn("Áreas de entrega indisponíveis:", erro);
-      estado.areasEntrega = [];
+      console.warn("Áreas de entrega indisponíveis, usando áreas padrão:", erro);
+      estado.areasEntrega = [...AREAS_ENTREGA_PADRAO];
     }
+
+    await carregarAvaliacoesBanco();
+    popularSelectBairrosCadastroCliente();
     atualizarInterfaceCarrinho();
 
     // Categorias arquivadas no admin (e os produtos delas) não aparecem na vitrine
@@ -430,7 +449,7 @@
     const instagramUsuario = (CFG.INSTAGRAM_USUARIO || "precosjustos.pg").replace(/^@/, "");
     const instagramUrl = CFG.INSTAGRAM_URL || `https://instagram.com/${instagramUsuario}`;
 
-    document.title = `${nomeLoja} | Catálogo de Ofertas`;
+    document.title = `${nomeLoja} | Loja Online — Pix e Cartão com Entrega ou Retirada`;
 
     const elNomeTopo = document.getElementById("nomeLojaTopo");
     const elNomeRodape = document.getElementById("nomeLojaRodape");
@@ -450,19 +469,20 @@
     if (elBannerSub && CFG.BANNER_SUBTITULO) elBannerSub.textContent = CFG.BANNER_SUBTITULO;
     if (elAno) elAno.textContent = String(new Date().getFullYear());
 
-    const msgGeral = encodeURIComponent(
-      `Olá! Vim pelo catálogo da *${nomeLoja}* e gostaria de realizar uma compra.`
+    // WhatsApp exclusivo para tirar dúvidas
+    const msgDuvidas = encodeURIComponent(
+      `Olá! Vim pelo site da *${nomeLoja}* e gostaria de tirar uma dúvida.`
     );
-    const urlWaGeral = `https://wa.me/${numeroLimpo}?text=${msgGeral}`;
+    const urlWaDuvidas = `https://wa.me/${numeroLimpo}?text=${msgDuvidas}`;
 
     const btnFlutuante = document.getElementById("btnWhatsappFlutuante");
     const linkWaRodape = document.getElementById("linkWhatsappRodape");
     const linkInstaRodape = document.getElementById("linkInstagramRodape");
 
-    if (btnFlutuante) btnFlutuante.href = urlWaGeral;
+    if (btnFlutuante) btnFlutuante.href = urlWaDuvidas;
     if (linkWaRodape) {
-      linkWaRodape.href = urlWaGeral;
-      linkWaRodape.textContent = `WhatsApp: ${whatsappExibicao}`;
+      linkWaRodape.href = urlWaDuvidas;
+      linkWaRodape.textContent = `Dúvidas no WhatsApp: ${whatsappExibicao}`;
     }
     if (linkInstaRodape) {
       linkInstaRodape.href = instagramUrl;
@@ -590,34 +610,128 @@
   }
 
   /**
+   * Retorna todas as URLs de fotos de um produto (suporta fotos ilimitadas)
+   */
+  function obterListaFotosProduto(produto) {
+    const urls = [];
+    if (produto && produto.foto_url && /^https?:\/\//i.test(String(produto.foto_url).trim())) {
+      urls.push(String(produto.foto_url).trim());
+    }
+    if (produto && Array.isArray(produto.fotos_urls)) {
+      produto.fotos_urls.forEach((u) => {
+        const limpa = String(u || "").trim();
+        if (/^https?:\/\//i.test(limpa) && !urls.includes(limpa)) {
+          urls.push(limpa);
+        }
+      });
+    }
+    if (urls.length === 0) {
+      urls.push(obterFotoSegura(""));
+    }
+    return urls;
+  }
+
+  /**
+   * Identifica se o produto exige maioridade (+18 anos) — ex.: Bebidas Alcoólicas
+   */
+  function produtoEhMaiorIdade(produto) {
+    if (!produto) return false;
+    if (produto.maior_idade === true) return true;
+    const texto = [
+      produto.categoria_nome || "",
+      produto.subcategoria || "",
+      produto.nome || ""
+    ]
+      .join(" ")
+      .toLowerCase();
+    return (
+      texto.includes("alcoól") ||
+      texto.includes("alcool") ||
+      texto.includes("cerveja") ||
+      texto.includes("vinho") ||
+      texto.includes("whisky") ||
+      texto.includes("vodka") ||
+      texto.includes("cachaça") ||
+      texto.includes("cachaca") ||
+      texto.includes("gin ") ||
+      texto.includes("licor") ||
+      texto.includes("espumante") ||
+      texto.includes("tequila")
+    );
+  }
+
+  /**
    * Constrói o card de um produto de forma 100% segura contra XSS (usando createElement e textContent)
+   * Observação: a comparação de preço de mercado fica restrita apenas ao painel Admin.
    */
   function criarCardProduto(produto) {
     const statusEstoque = avaliarStatusEstoque(produto.estoque);
-    const comparacao = avaliarComparacaoPreco(produto);
+    const fotos = obterListaFotosProduto(produto);
+    const ehMaior18 = produtoEhMaiorIdade(produto);
+    let indiceFotoAtual = 0;
 
     const artigo = document.createElement("article");
     artigo.className = "produto-card" + (statusEstoque.esgotado ? " esgotado" : "");
 
-    // 1. Mídia (Imagem com lazy loading + selos de topo)
+    // 1. Mídia (Imagem inteira sem cortes + navegação de fotos se houver várias + selos)
     const divMidia = document.createElement("div");
     divMidia.className = "produto-midia";
 
     const img = document.createElement("img");
-    img.src = obterFotoSegura(produto.foto_url);
+    img.src = fotos[0];
     img.alt = produto.nome || "Produto";
     img.loading = "lazy";
     img.decoding = "async";
+    img.style.cursor = "pointer";
+    img.title = "Toque para ver fotos e avaliações";
     img.addEventListener("error", () => {
       img.src = obterFotoSegura("");
     });
+    img.addEventListener("click", () => abrirModalAvaliacoesProduto(produto));
     divMidia.appendChild(img);
+
+    if (fotos.length > 1) {
+      const badgeFotos = document.createElement("span");
+      badgeFotos.className = "badge-fotos-count";
+      badgeFotos.textContent = `1/${fotos.length}`;
+
+      const btnAnt = document.createElement("button");
+      btnAnt.type = "button";
+      btnAnt.className = "btn-foto-card-nav esq";
+      btnAnt.textContent = "‹";
+      btnAnt.setAttribute("aria-label", "Foto anterior");
+      btnAnt.addEventListener("click", (e) => {
+        e.stopPropagation();
+        indiceFotoAtual = (indiceFotoAtual - 1 + fotos.length) % fotos.length;
+        img.src = fotos[indiceFotoAtual];
+        badgeFotos.textContent = `${indiceFotoAtual + 1}/${fotos.length}`;
+      });
+
+      const btnProx = document.createElement("button");
+      btnProx.type = "button";
+      btnProx.className = "btn-foto-card-nav dir";
+      btnProx.textContent = "›";
+      btnProx.setAttribute("aria-label", "Próxima foto");
+      btnProx.addEventListener("click", (e) => {
+        e.stopPropagation();
+        indiceFotoAtual = (indiceFotoAtual + 1) % fotos.length;
+        img.src = fotos[indiceFotoAtual];
+        badgeFotos.textContent = `${indiceFotoAtual + 1}/${fotos.length}`;
+      });
+
+      divMidia.appendChild(btnAnt);
+      divMidia.appendChild(btnProx);
+      divMidia.appendChild(badgeFotos);
+    }
 
     const divSelos = document.createElement("div");
     divSelos.className = "produto-selos-topo";
 
     const spanEsq = document.createElement("span");
-    if (produto.destaque) {
+    if (ehMaior18) {
+      spanEsq.className = "selo selo-maior-idade";
+      spanEsq.textContent = "🔞 +18";
+    } else if (produto.destaque) {
       spanEsq.className = "selo selo-destaque";
       spanEsq.textContent = "Destaque";
     }
@@ -653,9 +767,21 @@
     }
 
     const titulo = document.createElement("h3");
-    titulo.className = "produto-nome";
+    titulo.className = "produto-nome produto-titulo";
     titulo.textContent = produto.nome;
     divCorpo.appendChild(titulo);
+
+    // Botão de avaliações dos clientes
+    const resumoAval = obterResumoAvaliacoesProduto(produto.id);
+    const btnAval = document.createElement("button");
+    btnAval.type = "button";
+    btnAval.className = "btn-avaliacoes-card";
+    btnAval.textContent =
+      resumoAval.total > 0
+        ? `⭐ ${resumoAval.mediaFormatada} (${resumoAval.total})`
+        : "⭐ Avaliar";
+    btnAval.addEventListener("click", () => abrirModalAvaliacoesProduto(produto));
+    divCorpo.appendChild(btnAval);
 
     if (produto.descricao) {
       const desc = document.createElement("p");
@@ -664,64 +790,47 @@
       divCorpo.appendChild(desc);
     }
 
-    // 3. Bloco de Preço e Comparação de Mercado
+    // 3. Bloco de Preço (sem exibir comparativo de mercado para o cliente; fica restrito ao Admin)
     const blocoPreco = document.createElement("div");
-    blocoPreco.className = "produto-bloco-preco";
+    blocoPreco.className = "produto-bloco-preco produto-preco-bloco";
 
     const linhaPrincipal = document.createElement("div");
     linhaPrincipal.className = "preco-linha-principal";
 
     const spanPrecoVenda = document.createElement("span");
-    spanPrecoVenda.className = "preco-venda-valor";
+    spanPrecoVenda.className = "preco-venda-valor preco-nosso-valor";
     spanPrecoVenda.textContent = formatarMoeda(produto.preco_venda);
     linhaPrincipal.appendChild(spanPrecoVenda);
 
-    // Se a diferença for >= 5%, exibe "Economize R$ X"
-    if (comparacao.exibirEconomia) {
-      const spanEconomia = document.createElement("span");
-      spanEconomia.className = "selo-economize";
-      spanEconomia.textContent = comparacao.textoEconomia;
-      linhaPrincipal.appendChild(spanEconomia);
-    }
-
     blocoPreco.appendChild(linhaPrincipal);
-
-    // Se a pesquisa tiver <= 60 dias e o preço de venda não for maior que a média
-    if (comparacao.exibirPrecoMedio) {
-      const pMedio = document.createElement("p");
-      pMedio.className = "preco-medio-info";
-      pMedio.textContent = comparacao.textoPrecoMedio;
-      blocoPreco.appendChild(pMedio);
-    }
-
     divCorpo.appendChild(blocoPreco);
 
-    // 4. Botões de Ação ("Pedir pelo WhatsApp" e "Adicionar ao Pedido")
+    // 4. Botões de Ação ("Comprar Agora" direto no site e "Adicionar ao Carrinho")
     const divAcoes = document.createElement("div");
     divAcoes.className = "produto-acoes";
 
-    const btnWhatsapp = document.createElement("button");
-    btnWhatsapp.type = "button";
-    btnWhatsapp.className = "btn-pedir-whatsapp";
+    const btnComprarAgora = document.createElement("button");
+    btnComprarAgora.type = "button";
+    btnComprarAgora.className = "btn-pedir-whatsapp btn-card-whats";
 
     const btnCarrinho = document.createElement("button");
     btnCarrinho.type = "button";
-    btnCarrinho.className = "btn-adicionar-carrinho";
+    btnCarrinho.className = "btn-adicionar-carrinho btn-card-carrinho";
 
     if (statusEstoque.esgotado) {
-      btnWhatsapp.disabled = true;
-      btnWhatsapp.textContent = "Produto Esgotado";
+      btnComprarAgora.disabled = true;
+      btnComprarAgora.textContent = "Produto Esgotado";
       btnCarrinho.disabled = true;
-      btnCarrinho.textContent = "Indisponível no momento";
+      btnCarrinho.textContent = "Indisponível";
     } else {
-      btnWhatsapp.textContent = "📲 Pedir pelo WhatsApp";
-      btnWhatsapp.addEventListener("click", () => pedirProdutoDiretoWhatsapp(produto));
+      btnComprarAgora.textContent = "🛍️ Comprar Agora";
+      btnComprarAgora.addEventListener("click", () => comprarAgoraProduto(produto));
 
-      btnCarrinho.textContent = "🛒 Adicionar ao Pedido";
+      btnCarrinho.textContent = "🛒 + Carrinho";
       btnCarrinho.addEventListener("click", () => adicionarAoCarrinho(produto));
     }
 
-    divAcoes.appendChild(btnWhatsapp);
+    divAcoes.appendChild(btnComprarAgora);
     divAcoes.appendChild(btnCarrinho);
     divCorpo.appendChild(divAcoes);
 
@@ -825,23 +934,36 @@
   }
 
   // ==========================================================================
-  // 4. PEDIDO DIRETO E CARRINHO SIMPLES COM MENSAGEM ÚNICA PARA O WHATSAPP
+  // 4. COMPRA DIRETA NO SITE, CÁLCULO DE ENTREGA/TAXA, +18 E AVALIAÇÕES
   // ==========================================================================
 
-  function montarBlocoIdentificacaoCliente() {
-    if (!estado.clienteLogado || !estado.clienteLogado.nome) return [];
-    const linhas = [
-      ``,
-      `*Dados do Cliente:*`,
-      `• Nome: ${estado.clienteLogado.nome}`
-    ];
-    if (estado.clienteLogado.whatsapp) {
-      linhas.push(`• WhatsApp: ${estado.clienteLogado.whatsapp}`);
+  function calcularIdadeAnos(dataIso) {
+    const d = parseDataLocal(dataIso);
+    if (!d) return null;
+    const hoje = new Date();
+    let idade = hoje.getFullYear() - d.getFullYear();
+    const m = hoje.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < d.getDate())) {
+      idade -= 1;
     }
-    if (estado.clienteLogado.endereco) {
-      linhas.push(`• Endereço/Bairro: ${estado.clienteLogado.endereco}`);
-    }
-    return linhas;
+    return idade;
+  }
+
+  function formatarDataBR(dataIso) {
+    const d = parseDataLocal(dataIso);
+    if (!d) return "Não informada";
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const ano = d.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  function carrinhoTemProdutoMaiorIdade() {
+    return estado.carrinho.some((item) => {
+      if (item.maior_idade === true) return true;
+      const prodCat = estado.produtos.find((p) => String(p.id) === String(item.id));
+      return produtoEhMaiorIdade(prodCat || item);
+    });
   }
 
   function clienteEstaAptoParaCompra() {
@@ -852,10 +974,9 @@
     );
   }
 
-  function solicitarLoginOuCadastroParaCompra(acaoPendente) {
+  function solicitarLoginOuCadastroParaCompra(acaoPendente, msgPersonalizada) {
     estado.acaoPendenteCompra = acaoPendente;
 
-    // Fecha a gaveta do carrinho caso esteja aberta
     const overlayCarrinho = document.getElementById("carrinhoOverlay");
     if (overlayCarrinho) {
       overlayCarrinho.classList.remove("aberto");
@@ -865,9 +986,12 @@
     const modalCliente = document.getElementById("modalContaCliente");
     if (modalCliente) {
       atualizarInterfaceContaCliente();
-      alternarAbaModalCliente("cadastrar");
+      if (!estado.clienteLogado) {
+        alternarAbaModalCliente("cadastrar");
+      }
       exibirFeedbackCliente(
-        "🔒 Para finalizar seu pedido, faça login ou cadastre-se informando seu endereço completo de entrega.",
+        msgPersonalizada ||
+          "🔒 Para finalizar sua compra, faça login ou cadastre-se informando data de nascimento e endereço completo.",
         "erro"
       );
       modalCliente.classList.add("aberto");
@@ -887,35 +1011,43 @@
     }
 
     if (acao.tipo === "produto" && acao.produto) {
-      pedirProdutoDiretoWhatsapp(acao.produto);
+      comprarAgoraProduto(acao.produto);
     } else if (acao.tipo === "carrinho") {
-      enviarCarrinhoWhatsapp();
+      const overlayCarrinho = document.getElementById("carrinhoOverlay");
+      if (overlayCarrinho) {
+        overlayCarrinho.classList.add("aberto");
+        overlayCarrinho.setAttribute("aria-hidden", "false");
+      }
+      iniciarFinalizacaoCompraSite();
     }
   }
 
-  function pedirProdutoDiretoWhatsapp(produto) {
-    if (!clienteEstaAptoParaCompra()) {
-      solicitarLoginOuCadastroParaCompra({ tipo: "produto", produto });
+  function comprarAgoraProduto(produto) {
+    const estoqueMax = Math.max(0, parseInt(produto.estoque, 10) || 0);
+    if (estoqueMax <= 0) {
+      mostrarToast("Produto esgotado.");
       return;
     }
 
-    const numero = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
-    const nomeLoja = CFG.NOME_LOJA || "P&G Preços Justos";
-    const precoFormatado = formatarMoeda(produto.preco_venda);
+    const existente = estado.carrinho.find((item) => item.id === produto.id);
+    if (!existente) {
+      estado.carrinho.push({
+        id: produto.id,
+        nome: produto.nome,
+        preco_venda: Number(produto.preco_venda),
+        quantidade: 1,
+        estoque: estoqueMax,
+        maior_idade: produtoEhMaiorIdade(produto)
+      });
+      salvarCarrinho();
+      atualizarInterfaceCarrinho();
+    }
 
-    const mensagem = [
-      `Olá, *${nomeLoja}*!`,
-      `Gostaria de pedir este produto do catálogo:`,
-      ``,
-      `• *${produto.nome}*`,
-      `  Valor: *${precoFormatado}*`,
-      ...montarBlocoIdentificacaoCliente(),
-      ``,
-      `Podemos confirmar a disponibilidade, a entrega/retirada e o pagamento (Pix ou Cartão)?`
-    ].join("\n");
-
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const overlayCarrinho = document.getElementById("carrinhoOverlay");
+    if (overlayCarrinho) {
+      overlayCarrinho.classList.add("aberto");
+      overlayCarrinho.setAttribute("aria-hidden", "false");
+    }
   }
 
   function carregarCarrinhoSalvo() {
@@ -948,10 +1080,73 @@
       } else {
         localStorage.removeItem(CHAVE_STORAGE_CLIENTE);
       }
-    } catch (_) {
-      // Ignora erro de quota
-    }
+    } catch (_) {}
     atualizarInterfaceContaCliente();
+  }
+
+  function popularSelectBairrosCadastroCliente() {
+    const selectBairro = document.getElementById("cadClienteBairro");
+    if (!selectBairro) return;
+    const valorAtual = selectBairro.value;
+
+    const bairrosBase = [
+      "Centro",
+      "Nazaré",
+      "Barris",
+      "Brotas",
+      "Cabula",
+      "Pernambués",
+      "Pituba",
+      "Itaigara",
+      "Rio Vermelho",
+      "Barra",
+      "Ondina",
+      "Federação",
+      "Graça",
+      "Imbuí",
+      "Boca do Rio",
+      "Stiep",
+      "Costa Azul",
+      "Armação",
+      "Itapuã",
+      "Piatã",
+      "Paralela",
+      "Cajazeiras",
+      "São Marcos",
+      "Pau da Lima",
+      "Sussuarana",
+      "Liberdade",
+      "Cidade Baixa",
+      "Ribeira",
+      "Bonfim",
+      " Calçada",
+      "Periperi",
+      "Paripe",
+      "Lauro de Freitas (Centro / Vilas / Itinga)"
+    ];
+
+    const nomesAreas = (estado.areasEntrega || []).map((a) => String(a.nome || "").trim()).filter(Boolean);
+    const todosBairros = Array.from(new Set([...nomesAreas, ...bairrosBase]));
+
+    selectBairro.textContent = "";
+    const optPadrao = document.createElement("option");
+    optPadrao.value = "";
+    optPadrao.textContent = "Selecione seu bairro...";
+    selectBairro.appendChild(optPadrao);
+
+    todosBairros.forEach((b) => {
+      const opt = document.createElement("option");
+      opt.value = b.trim();
+      opt.textContent = b.trim();
+      selectBairro.appendChild(opt);
+    });
+
+    const optOutro = document.createElement("option");
+    optOutro.value = "__outro__";
+    optOutro.textContent = "Outro bairro (digitar)...";
+    selectBairro.appendChild(optOutro);
+
+    if (valorAtual) selectBairro.value = valorAtual;
   }
 
   function atualizarInterfaceContaCliente() {
@@ -977,6 +1172,21 @@
           estado.clienteLogado.whatsapp || "Não informado";
         document.getElementById("perfilClienteEndereco").textContent =
           estado.clienteLogado.endereco || "Não informado";
+
+        const elDataNasc = document.getElementById("perfilClienteDataNasc");
+        const boxAtualizarNasc = document.getElementById("boxAtualizarDataNascLogado");
+        if (estado.clienteLogado.data_nascimento) {
+          const idade = calcularIdadeAnos(estado.clienteLogado.data_nascimento);
+          if (elDataNasc) {
+            elDataNasc.textContent = `${formatarDataBR(estado.clienteLogado.data_nascimento)}${
+              idade !== null ? ` (${idade} anos)` : ""
+            }`;
+          }
+          if (boxAtualizarNasc) boxAtualizarNasc.style.display = "none";
+        } else {
+          if (elDataNasc) elDataNasc.textContent = "Não informada (necessária para bebidas +18)";
+          if (boxAtualizarNasc) boxAtualizarNasc.style.display = "block";
+        }
       }
     } else {
       if (elTextoTopo) elTextoTopo.textContent = "Entrar / Cadastrar";
@@ -1009,6 +1219,7 @@
       btnCadastrar?.classList.add("ativa");
       if (formLogin) formLogin.style.display = "none";
       if (formCadastro) formCadastro.style.display = "block";
+      popularSelectBairrosCadastroCliente();
     } else {
       btnCadastrar?.classList.remove("ativa");
       btnEntrar?.classList.add("ativa");
@@ -1026,7 +1237,19 @@
       .trim()
       .toLowerCase();
     const whatsapp = String(document.getElementById("cadClienteWhatsapp")?.value || "").trim();
-    const endereco = String(document.getElementById("cadClienteEndereco")?.value || "").trim();
+    const dataNascimento = String(document.getElementById("cadClienteDataNasc")?.value || "").trim();
+    const pais = String(document.getElementById("cadClientePais")?.value || "Brasil").trim();
+    const estadoUf = String(document.getElementById("cadClienteEstado")?.value || "BA").trim();
+    const cidadeSel = String(document.getElementById("cadClienteCidade")?.value || "").trim();
+    const cidadeOutra = String(document.getElementById("cadClienteCidadeOutra")?.value || "").trim();
+    const cidade = cidadeSel === "__outra__" ? cidadeOutra : cidadeSel;
+
+    const bairroSel = String(document.getElementById("cadClienteBairro")?.value || "").trim();
+    const bairroOutro = String(document.getElementById("cadClienteBairroOutro")?.value || "").trim();
+    const bairro = bairroSel === "__outro__" ? bairroOutro : bairroSel;
+
+    const rua = String(document.getElementById("cadClienteRua")?.value || "").trim();
+    const complemento = String(document.getElementById("cadClienteComplemento")?.value || "").trim();
     const senha = String(document.getElementById("cadClienteSenha")?.value || "");
     const btn = document.getElementById("btnSubmitCadastroCliente");
 
@@ -1042,16 +1265,28 @@
       exibirFeedbackCliente("Por favor, informe seu WhatsApp com DDD.");
       return;
     }
-    if (endereco.length < 5) {
-      exibirFeedbackCliente(
-        "O endereço de entrega é obrigatório. Informe rua, número e bairro."
-      );
+    if (!dataNascimento || calcularIdadeAnos(dataNascimento) === null) {
+      exibirFeedbackCliente("Por favor, informe sua data de nascimento válida.");
+      return;
+    }
+    if (!pais || !estadoUf || !cidade) {
+      exibirFeedbackCliente("Selecione País, Estado e Cidade.");
+      return;
+    }
+    if (!bairro) {
+      exibirFeedbackCliente("Selecione ou informe seu Bairro.");
+      return;
+    }
+    if (rua.length < 3) {
+      exibirFeedbackCliente("Informe sua Rua e Número.");
       return;
     }
     if (senha.length < 6) {
       exibirFeedbackCliente("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
+
+    const endereco = `${rua}${complemento ? " (" + complemento + ")" : ""} - ${bairro}, ${cidade}/${estadoUf} - ${pais}`;
 
     try {
       if (btn) {
@@ -1067,12 +1302,37 @@
           p_email: email,
           p_whatsapp: whatsapp,
           p_endereco: endereco,
-          p_senha: senha
+          p_senha: senha,
+          p_data_nascimento: dataNascimento,
+          p_pais: pais,
+          p_estado: estadoUf,
+          p_cidade: cidade,
+          p_bairro: bairro,
+          p_rua: rua,
+          p_complemento: complemento
         });
 
         if (error) {
-          // Se a função RPC ainda não foi rodada no SQL do Supabase, usa armazenamento local seguro
-          if (
+          // Tenta chamada compatível com versão anterior da RPC (5 parâmetros) caso o SQL novo ainda não tenha rodado
+          const resAntigo = await supabaseInstancia.rpc("cadastrar_cliente_loja", {
+            p_nome: nome,
+            p_email: email,
+            p_whatsapp: whatsapp,
+            p_endereco: endereco,
+            p_senha: senha
+          });
+          if (!resAntigo.error && resAntigo.data) {
+            dadosCliente = {
+              ...resAntigo.data,
+              data_nascimento: dataNascimento,
+              pais,
+              estado: estadoUf,
+              cidade,
+              bairro,
+              rua,
+              complemento
+            };
+          } else if (
             String(error.message || "").includes("cadastrar_cliente_loja") ||
             String(error.code || "") === "PGRST202"
           ) {
@@ -1081,13 +1341,23 @@
               email,
               whatsapp,
               endereco,
-              senha
+              senha,
+              data_nascimento: dataNascimento,
+              pais,
+              estado: estadoUf,
+              cidade,
+              bairro,
+              rua,
+              complemento
             });
           } else {
-            throw new Error(error.message);
+            throw new Error(resAntigo.error?.message || error.message);
           }
         } else {
-          dadosCliente = data;
+          dadosCliente = {
+            ...data,
+            data_nascimento: data?.data_nascimento || dataNascimento
+          };
         }
       } else {
         dadosCliente = cadastrarClienteLocalFallback({
@@ -1095,7 +1365,14 @@
           email,
           whatsapp,
           endereco,
-          senha
+          senha,
+          data_nascimento: dataNascimento,
+          pais,
+          estado: estadoUf,
+          cidade,
+          bairro,
+          rua,
+          complemento
         });
       }
 
@@ -1167,29 +1444,27 @@
     }
   }
 
-  function cadastrarClienteLocalFallback({ nome, email, whatsapp, endereco, senha }) {
+  function cadastrarClienteLocalFallback(dados) {
     let lista = [];
     try {
       lista = JSON.parse(localStorage.getItem(CHAVE_STORAGE_CONTAS_LOCAIS) || "[]");
     } catch (_) {
       lista = [];
     }
-    if (lista.some((c) => c.email === email)) {
+    if (lista.some((c) => c.email === dados.email)) {
       throw new Error("Este e-mail já está cadastrado. Acesse a aba Entrar.");
     }
     const novo = {
       id: "cli-" + Date.now(),
-      nome,
-      email,
-      whatsapp,
-      endereco,
-      senha
+      ...dados
     };
     lista.push(novo);
     try {
       localStorage.setItem(CHAVE_STORAGE_CONTAS_LOCAIS, JSON.stringify(lista));
     } catch (_) {}
-    return { id: novo.id, nome, email, whatsapp, endereco };
+    const copiaSegura = { ...novo };
+    delete copiaSegura.senha;
+    return copiaSegura;
   }
 
   function loginClienteLocalFallback(email, senha) {
@@ -1203,13 +1478,9 @@
     if (!encontrado) {
       throw new Error("E-mail ou senha incorretos.");
     }
-    return {
-      id: encontrado.id,
-      nome: encontrado.nome,
-      email: encontrado.email,
-      whatsapp: encontrado.whatsapp,
-      endereco: encontrado.endereco
-    };
+    const copiaSegura = { ...encontrado };
+    delete copiaSegura.senha;
+    return copiaSegura;
   }
 
   function carregarAreaEntregaSalva() {
@@ -1223,9 +1494,21 @@
   function salvarAreaEntrega() {
     try {
       localStorage.setItem(CHAVE_STORAGE_AREA_ENTREGA, estado.areaEntregaSelecionada || "");
+    } catch (_) {}
+  }
+
+  function carregarMetodoPagamentoSalvo() {
+    try {
+      return localStorage.getItem(CHAVE_STORAGE_METODO_PAGAMENTO) || "pix";
     } catch (_) {
-      // Ignora erro de quota
+      return "pix";
     }
+  }
+
+  function salvarMetodoPagamento() {
+    try {
+      localStorage.setItem(CHAVE_STORAGE_METODO_PAGAMENTO, estado.metodoPagamentoSelecionado || "pix");
+    } catch (_) {}
   }
 
   function obterAreaEntregaSelecionada() {
@@ -1235,10 +1518,6 @@
     );
   }
 
-  /**
-   * Frete da área escolhida: zero quando o pedido atinge o valor de "frete grátis acima de".
-   * Retorna null quando não há área (fora da lista ou nada escolhido).
-   */
   function calcularFreteArea(area, subtotalProdutos) {
     if (!area) return null;
     const limiteGratis = area.gratis_acima;
@@ -1248,19 +1527,36 @@
     return Number(area.valor) || 0;
   }
 
+  function calcularTaxaPagamento(valorBase) {
+    if (estado.metodoPagamentoSelecionado === "cartao") {
+      const pct = Number(CFG.TAXA_CARTAO_MERCADO_PAGO_PCT) || 4.99;
+      return Number(((valorBase * pct) / 100).toFixed(2));
+    }
+    return 0;
+  }
+
   function renderizarEntregaCarrinho(subtotalProdutos) {
     const bloco = document.getElementById("blocoEntregaCarrinho");
     const select = document.getElementById("selectAreaEntrega");
     const aviso = document.getElementById("avisoAreaEntrega");
     const linhasFrete = document.getElementById("linhasFreteCarrinho");
     const avisoPagamento = document.getElementById("carrinhoAvisoPagamento");
+    const blocoPagamento = document.getElementById("blocoPagamentoCarrinho");
+    const selectPag = document.getElementById("selectMetodoPagamentoCarrinho");
+    const avisoTaxaPag = document.getElementById("avisoTaxaPagamentoCarrinho");
+    const blocoMaior18 = document.getElementById("blocoConfirmacaoMaiorIdadeCarrinho");
     const exibir = estado.carrinho.length > 0;
     const temAreas = estado.areasEntrega.length > 0;
 
     if (bloco) bloco.style.display = exibir ? "block" : "none";
+    if (blocoPagamento) blocoPagamento.style.display = exibir ? "block" : "none";
     if (linhasFrete) linhasFrete.style.display = exibir ? "block" : "none";
 
-    // Se a área salva foi removida no admin, limpa a escolha
+    const exigeMaior18 = exibir && carrinhoTemProdutoMaiorIdade();
+    if (blocoMaior18) {
+      blocoMaior18.style.display = exigeMaior18 ? "block" : "none";
+    }
+
     if (
       estado.areaEntregaSelecionada &&
       estado.areaEntregaSelecionada !== AREA_FORA_DA_LISTA &&
@@ -1275,7 +1571,7 @@
       select.textContent = "";
       const opcoes = [
         { valor: "", texto: "Selecione: entrega em casa ou retirada..." },
-        { valor: AREA_RETIRADA, texto: "🏪 Retirar no local — Grátis (horário combinado)" }
+        { valor: AREA_RETIRADA, texto: "🏪 Retirar no local — Grátis (sem taxa de entrega)" }
       ];
       estado.areasEntrega.forEach((area) => {
         const frete = calcularFreteArea(area, subtotalProdutos);
@@ -1287,8 +1583,8 @@
       opcoes.push({
         valor: AREA_FORA_DA_LISTA,
         texto: temAreas
-          ? "🚚 Entrega em casa: meu bairro não está na lista (combinar)"
-          : "🚚 Entrega em casa (frete combinado pelo WhatsApp)"
+          ? "🚚 Entrega em casa: outro bairro (taxa padrão R$ 15,00)"
+          : "🚚 Entrega em casa (taxa padrão R$ 15,00)"
       });
       opcoes.forEach((op) => {
         const opt = document.createElement("option");
@@ -1299,18 +1595,52 @@
       select.value = estado.areaEntregaSelecionada || "";
     }
 
+    if (selectPag) {
+      const pctCartao = Number(CFG.TAXA_CARTAO_MERCADO_PAGO_PCT) || 4.99;
+      selectPag.textContent = "";
+      const optPix = document.createElement("option");
+      optPix.value = "pix";
+      optPix.textContent = "💠 Pix (Mercado Pago — Sem taxa extra)";
+      const optCartao = document.createElement("option");
+      optCartao.value = "cartao";
+      optCartao.textContent = `💳 Cartão de Crédito / Débito (Mercado Pago — +${pctCartao.toLocaleString("pt-BR")}%)`;
+      selectPag.appendChild(optPix);
+      selectPag.appendChild(optCartao);
+      selectPag.value = estado.metodoPagamentoSelecionado || "pix";
+    }
+
     const area = obterAreaEntregaSelecionada();
-    const frete = calcularFreteArea(area, subtotalProdutos);
+    let frete = calcularFreteArea(area, subtotalProdutos);
+    if (estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA) {
+      frete = 15.0;
+    } else if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
+      frete = 0;
+    }
+
     const elFrete = document.getElementById("carrinhoFreteValor");
     if (elFrete) {
       if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
         elFrete.textContent = "Retirada (grátis)";
       } else if (frete === null) {
-        elFrete.textContent =
-          estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA ? "A combinar" : "Escolha uma opção";
+        elFrete.textContent = "Escolha uma opção";
       } else {
         elFrete.textContent = frete === 0 ? "Grátis" : formatarMoeda(frete);
       }
+    }
+
+    const baseCalculoTaxa = subtotalProdutos + (frete || 0);
+    const taxaPagamento = calcularTaxaPagamento(baseCalculoTaxa);
+    const elTaxaPag = document.getElementById("carrinhoTaxaPagamentoValor");
+    if (elTaxaPag) {
+      elTaxaPag.textContent =
+        taxaPagamento > 0 ? `+ ${formatarMoeda(taxaPagamento)}` : "R$ 0,00 (Pix)";
+    }
+
+    if (avisoTaxaPag) {
+      avisoTaxaPag.textContent =
+        taxaPagamento > 0
+          ? `Taxa da maquininha/Mercado Pago de ${formatarMoeda(taxaPagamento)} adicionada ao total.`
+          : "No Pix você não paga nenhuma taxa adicional.";
     }
 
     if (aviso) {
@@ -1326,18 +1656,16 @@
 
     if (avisoPagamento) {
       avisoPagamento.textContent =
-        "O pagamento (Pix ou Cartão) é combinado diretamente na conversa do WhatsApp.";
+        "Pagamento seguro via Pix ou Cartão sincronizado com Mercado Pago / Mercado Livre.";
     }
 
-    return frete;
+    return { frete: frete || 0, taxaPagamento };
   }
 
   function salvarCarrinho() {
     try {
       localStorage.setItem(CHAVE_STORAGE_CARRINHO, JSON.stringify(estado.carrinho));
-    } catch (_) {
-      // Ignora erro de quota
-    }
+    } catch (_) {}
   }
 
   function adicionarAoCarrinho(produto) {
@@ -1360,19 +1688,21 @@
       existente.quantidade += 1;
       existente.preco_venda = Number(produto.preco_venda);
       existente.estoque = estoqueMax;
+      existente.maior_idade = produtoEhMaiorIdade(produto);
     } else {
       estado.carrinho.push({
         id: produto.id,
         nome: produto.nome,
         preco_venda: Number(produto.preco_venda),
         quantidade: 1,
-        estoque: estoqueMax
+        estoque: estoqueMax,
+        maior_idade: produtoEhMaiorIdade(produto)
       });
     }
 
     salvarCarrinho();
     atualizarInterfaceCarrinho();
-    mostrarToast(`"${produto.nome}" adicionado ao pedido!`);
+    mostrarToast(`"${produto.nome}" adicionado ao carrinho!`);
   }
 
   function alterarQuantidadeCarrinho(produtoId, delta) {
@@ -1417,8 +1747,8 @@
     if (contador) contador.textContent = String(totalUnidades);
     const elSubtotal = document.getElementById("carrinhoSubtotalValor");
     if (elSubtotal) elSubtotal.textContent = formatarMoeda(valorTotal);
-    const freteCarrinho = renderizarEntregaCarrinho(valorTotal);
-    if (elTotal) elTotal.textContent = formatarMoeda(valorTotal + (freteCarrinho || 0));
+    const { frete, taxaPagamento } = renderizarEntregaCarrinho(valorTotal);
+    if (elTotal) elTotal.textContent = formatarMoeda(valorTotal + frete + taxaPagamento);
 
     if (!containerItens) return;
     containerItens.textContent = "";
@@ -1427,7 +1757,7 @@
       const msgVazio = document.createElement("div");
       msgVazio.className = "estado-lista";
       msgVazio.textContent =
-        "Seu carrinho está vazio. Adicione produtos do catálogo para montar uma lista única no WhatsApp!";
+        "Seu carrinho está vazio. Clique em 'Comprar Agora' ou '+ Carrinho' nos produtos para começar!";
       containerItens.appendChild(msgVazio);
       if (btnFinalizar) btnFinalizar.disabled = true;
       if (btnLimpar) btnLimpar.style.display = "none";
@@ -1446,7 +1776,7 @@
 
       const nome = document.createElement("div");
       nome.className = "carrinho-item-nome";
-      nome.textContent = item.nome;
+      nome.textContent = item.maior_idade ? `🔞 ${item.nome}` : item.nome;
 
       const preco = document.createElement("div");
       preco.className = "carrinho-item-preco";
@@ -1487,33 +1817,63 @@
     });
   }
 
-  function montarBlocoEntregaPedido(subtotalProdutos) {
-    if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
-      return [
-        `Produtos: ${formatarMoeda(subtotalProdutos)}`,
-        `Recebimento: *Retirada no local (grátis)* — combinar horário`,
-        `*Total do pedido: ${formatarMoeda(subtotalProdutos)}*`
-      ];
+  /**
+   * Gera código Pix Copia e Cola padrão EMVCo para o valor total da compra
+   */
+  function gerarPayloadPixCopiaECola(valorTotal) {
+    const chave = String(CFG.PIX_CHAVE_LOJA || "71999915480").trim();
+    const favorecido = String(CFG.PIX_FAVORECIDO || "PG PRECOS JUSTOS")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .substring(0, 25)
+      .toUpperCase();
+    const cidade = String(CFG.PIX_CIDADE || "SALVADOR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .substring(0, 15)
+      .toUpperCase();
+    const valorStr = Number(valorTotal || 0).toFixed(2);
+
+    function tlv(id, val) {
+      const tam = String(val.length).padStart(2, "0");
+      return `${id}${tam}${val}`;
     }
-    const area = obterAreaEntregaSelecionada();
-    if (!area) {
-      return [
-        `Produtos: ${formatarMoeda(subtotalProdutos)}`,
-        estado.areasEntrega.length > 0
-          ? `Entrega em casa: *bairro fora da lista — combinar frete*`
-          : `Entrega em casa: *combinar frete*`,
-        `*Total dos produtos: ${formatarMoeda(subtotalProdutos)}* (+ frete a combinar)`
-      ];
+
+    const gui = tlv("00", "br.gov.bcb.pix");
+    const keyField = tlv("01", chave);
+    const merchantAccount = tlv("26", gui + keyField);
+    const txid = tlv("05", "PGPEDIDO");
+    const addData = tlv("62", txid);
+
+    const semCrc =
+      tlv("00", "01") +
+      merchantAccount +
+      tlv("52", "0000") +
+      tlv("53", "986") +
+      tlv("54", valorStr) +
+      tlv("58", "BR") +
+      tlv("59", favorecido) +
+      tlv("60", cidade) +
+      addData +
+      "6304";
+
+    // Cálculo CRC16-CCITT (0xFFFF)
+    let crc = 0xffff;
+    for (let i = 0; i < semCrc.length; i++) {
+      crc ^= semCrc.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) {
+        if ((crc & 0x8000) !== 0) {
+          crc = ((crc << 1) ^ 0x1021) & 0xffff;
+        } else {
+          crc = (crc << 1) & 0xffff;
+        }
+      }
     }
-    const frete = calcularFreteArea(area, subtotalProdutos);
-    return [
-      `Produtos: ${formatarMoeda(subtotalProdutos)}`,
-      `Entrega em casa (${area.nome}): ${frete === 0 ? "*Grátis*" : formatarMoeda(frete)}`,
-      `*Total do pedido: ${formatarMoeda(subtotalProdutos + frete)}*`
-    ];
+    const crcHex = crc.toString(16).toUpperCase().padStart(4, "0");
+    return semCrc + crcHex;
   }
 
-  function enviarCarrinhoWhatsapp() {
+  function iniciarFinalizacaoCompraSite() {
     if (estado.carrinho.length === 0) return;
 
     if (!clienteEstaAptoParaCompra()) {
@@ -1521,43 +1881,414 @@
       return;
     }
 
-    // O cliente precisa escolher entrega em casa (bairro) ou retirada
     if (!estado.areaEntregaSelecionada) {
       mostrarToast("Escolha como quer receber (entrega em casa ou retirada) antes de finalizar.");
       document.getElementById("selectAreaEntrega")?.focus();
       return;
     }
 
-    const numero = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
-    const nomeLoja = CFG.NOME_LOJA || "P&G Preços Justos";
+    // Verificação obrigatória +18 para bebidas alcoólicas
+    if (carrinhoTemProdutoMaiorIdade()) {
+      const check18 = document.getElementById("checkMaiorIdadeCarrinho");
+      if (!check18 || !check18.checked) {
+        mostrarToast(
+          "🔞 Marque a caixinha confirmando que você tem mais de 18 anos para comprar bebidas alcoólicas."
+        );
+        check18?.focus();
+        return;
+      }
 
-    let total = 0;
-    const linhasItens = estado.carrinho.map((item) => {
-      const subtotal = Number(item.preco_venda) * item.quantidade;
-      total += subtotal;
-      return `• ${item.quantidade}x *${item.nome}* — ${formatarMoeda(subtotal)} (${formatarMoeda(item.preco_venda)} cada)`;
-    });
+      const dataNascCliente = estado.clienteLogado?.data_nascimento;
+      if (!dataNascCliente) {
+        solicitarLoginOuCadastroParaCompra(
+          { tipo: "carrinho" },
+          "🔞 Bebida alcoólica no pedido: informe sua data de nascimento no seu perfil para comprovar que você tem 18 anos ou mais."
+        );
+        return;
+      }
 
-    const mensagem = [
-      `Olá, *${nomeLoja}*!`,
-      `Montei meu pedido pelo catálogo online:`,
-      ``,
-      ...linhasItens,
-      ``,
-      ...montarBlocoEntregaPedido(total),
-      ...montarBlocoIdentificacaoCliente(),
-      ``,
-      obterAreaEntregaSelecionada()
-        ? `Como podemos combinar o pagamento (Pix ou Cartão)?`
-        : `Como podemos combinar a entrega/retirada e o pagamento (Pix ou Cartão)?`
-    ].join("\n");
+      const idadeCliente = calcularIdadeAnos(dataNascCliente);
+      if (idadeCliente === null || idadeCliente < 18) {
+        mostrarToast(
+          "🔞 Compra bloqueada: venda de bebidas alcoólicas proibida para menores de 18 anos (Lei nº 13.106/2015)."
+        );
+        return;
+      }
+    }
 
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    abrirModalPagamentoCheckout();
+  }
+
+  function alternarAbaModalPagamento(metodo) {
+    estado.metodoPagamentoSelecionado = metodo === "cartao" ? "cartao" : "pix";
+    salvarMetodoPagamento();
+    atualizarInterfaceCarrinho();
+
+    const btnPix = document.getElementById("abaPagBtnPix");
+    const btnCartao = document.getElementById("abaPagBtnCartao");
+    const painelPix = document.getElementById("painelPagamentoPix");
+    const painelCartao = document.getElementById("painelPagamentoCartao");
+
+    if (estado.metodoPagamentoSelecionado === "cartao") {
+      btnPix?.classList.remove("ativa");
+      btnCartao?.classList.add("ativa");
+      if (painelPix) painelPix.style.display = "none";
+      if (painelCartao) painelCartao.style.display = "block";
+    } else {
+      btnCartao?.classList.remove("ativa");
+      btnPix?.classList.add("ativa");
+      if (painelCartao) painelCartao.style.display = "none";
+      if (painelPix) painelPix.style.display = "block";
+    }
+
+    preencherResumoModalPagamento();
+  }
+
+  function preencherResumoModalPagamento() {
+    const boxResumo = document.getElementById("resumoPagamentoCheckout");
+    if (!boxResumo) return;
+
+    const subtotalProdutos = estado.carrinho.reduce(
+      (acc, item) => acc + Number(item.preco_venda) * item.quantidade,
+      0
+    );
+    const area = obterAreaEntregaSelecionada();
+    let frete = calcularFreteArea(area, subtotalProdutos);
+    if (estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA) frete = 15.0;
+    else if (estado.areaEntregaSelecionada === AREA_RETIRADA) frete = 0;
+    else frete = frete || 0;
+
+    const taxaPag = calcularTaxaPagamento(subtotalProdutos + frete);
+    const totalFinal = subtotalProdutos + frete + taxaPag;
+
+    boxResumo.textContent = "";
+
+    const criarLinha = (rotulo, valor) => {
+      const div = document.createElement("div");
+      div.className = "resumo-pagamento-linha";
+      const sp1 = document.createElement("span");
+      sp1.textContent = rotulo;
+      const sp2 = document.createElement("strong");
+      sp2.textContent = valor;
+      div.appendChild(sp1);
+      div.appendChild(sp2);
+      return div;
+    };
+
+    boxResumo.appendChild(criarLinha("Subtotal dos produtos:", formatarMoeda(subtotalProdutos)));
+    boxResumo.appendChild(
+      criarLinha(
+        estado.areaEntregaSelecionada === AREA_RETIRADA
+          ? "Recebimento (Retirada no local):"
+          : `Entrega em casa (${area ? area.nome : "Taxa padrão"}):`,
+        frete === 0 ? "Grátis" : formatarMoeda(frete)
+      )
+    );
+    boxResumo.appendChild(
+      criarLinha(
+        estado.metodoPagamentoSelecionado === "cartao"
+          ? `Taxa Cartão Mercado Pago (${CFG.TAXA_CARTAO_MERCADO_PAGO_PCT || 4.99}%):`
+          : "Taxa Pix Mercado Pago:",
+        taxaPag > 0 ? `+ ${formatarMoeda(taxaPag)}` : "R$ 0,00 (isento)"
+      )
+    );
+
+    const divTotal = document.createElement("div");
+    divTotal.className = "resumo-pagamento-total";
+    const spTot1 = document.createElement("span");
+    spTot1.textContent = "Total a pagar agora:";
+    const spTot2 = document.createElement("span");
+    spTot2.textContent = formatarMoeda(totalFinal);
+    divTotal.appendChild(spTot1);
+    divTotal.appendChild(spTot2);
+    boxResumo.appendChild(divTotal);
+
+    // Atualiza QR Code e código Pix
+    const payloadPix = gerarPayloadPixCopiaECola(totalFinal);
+    const inputPix = document.getElementById("inputPixCopiaECola");
+    if (inputPix) inputPix.value = payloadPix;
+
+    const imgQr = document.getElementById("imgQrCodePix");
+    if (imgQr) {
+      imgQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+        payloadPix
+      )}`;
+    }
+
+    // Atualiza texto e link do Cartão Mercado Pago
+    const descCartao = document.getElementById("textoDetalheTaxaCartao");
+    if (descCartao) {
+      descCartao.textContent = `Valor no Cartão com a taxa do Mercado Pago inclusa: ${formatarMoeda(
+        totalFinal
+      )}. Você pode parcelar ou pagar à vista no crédito/débito.`;
+    }
+    const linkMp = document.getElementById("linkCheckoutMercadoPago");
+    if (linkMp) {
+      linkMp.href = "https://www.mercadopago.com.br/";
+    }
+  }
+
+  function abrirModalPagamentoCheckout() {
+    const overlayCarrinho = document.getElementById("carrinhoOverlay");
+    if (overlayCarrinho) {
+      overlayCarrinho.classList.remove("aberto");
+      overlayCarrinho.setAttribute("aria-hidden", "true");
+    }
+
+    const modalPag = document.getElementById("modalPagamentoCheckout");
+    if (!modalPag) return;
+
+    alternarAbaModalPagamento(estado.metodoPagamentoSelecionado || "pix");
+    modalPag.classList.add("aberto");
+    modalPag.setAttribute("aria-hidden", "false");
+  }
+
+  function fecharModalPagamentoCheckout() {
+    const modalPag = document.getElementById("modalPagamentoCheckout");
+    if (!modalPag) return;
+    modalPag.classList.remove("aberto");
+    modalPag.setAttribute("aria-hidden", "true");
+  }
+
+  function confirmarPagamentoRealizado() {
+    if (estado.carrinho.length === 0) return;
+    fecharModalPagamentoCheckout();
+    limparCarrinho();
+    mostrarToast(
+      "✅ Compra registrada com sucesso! Estamos preparando seu pedido. Se tiver qualquer dúvida, chame no ícone do WhatsApp."
+    );
   }
 
   // ==========================================================================
-  // 5. EVENTOS DE INTERFACE (MENU, BUSCA, DRAWER E TOAST)
+  // 5. AVALIAÇÕES DOS CLIENTES E GALERIA DE FOTOS DO PRODUTO
+  // ==========================================================================
+
+  function carregarAvaliacoesLocais() {
+    try {
+      const bruto = localStorage.getItem(CHAVE_STORAGE_AVALIACOES);
+      if (!bruto) return {};
+      const lido = JSON.parse(bruto);
+      return lido && typeof lido === "object" ? lido : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function salvarAvaliacoesLocais() {
+    try {
+      localStorage.setItem(CHAVE_STORAGE_AVALIACOES, JSON.stringify(estado.avaliacoesPorProduto));
+    } catch (_) {}
+  }
+
+  async function carregarAvaliacoesBanco() {
+    if (!supabaseInstancia) return;
+    try {
+      const { data, error } = await supabaseInstancia
+        .from("avaliacoes")
+        .select("id, produto_id, cliente_nome, nota, comentario, criado_em")
+        .order("criado_em", { ascending: false });
+      if (error) throw error;
+      if (Array.isArray(data)) {
+        const mapa = carregarAvaliacoesLocais();
+        data.forEach((av) => {
+          const pid = String(av.produto_id);
+          if (!Array.isArray(mapa[pid])) mapa[pid] = [];
+          if (!mapa[pid].some((existente) => String(existente.id) === String(av.id))) {
+            mapa[pid].push(av);
+          }
+        });
+        estado.avaliacoesPorProduto = mapa;
+        salvarAvaliacoesLocais();
+      }
+    } catch (_) {
+      // Se a tabela avaliacoes ainda não existir no banco, usa o armazenamento local normalmente
+    }
+  }
+
+  function obterResumoAvaliacoesProduto(produtoId) {
+    const lista = estado.avaliacoesPorProduto[String(produtoId)] || [];
+    if (!Array.isArray(lista) || lista.length === 0) {
+      return { total: 0, media: 0, mediaFormatada: "5,0", lista: [] };
+    }
+    const soma = lista.reduce((acc, a) => acc + (Number(a.nota) || 5), 0);
+    const media = soma / lista.length;
+    return {
+      total: lista.length,
+      media,
+      mediaFormatada: media.toFixed(1).replace(".", ","),
+      lista
+    };
+  }
+
+  function abrirModalAvaliacoesProduto(produto) {
+    if (!produto) return;
+    estado.produtoModalAvaliacaoAtual = produto;
+
+    const modal = document.getElementById("modalAvaliacoesProduto");
+    if (!modal) return;
+
+    const titulo = document.getElementById("tituloModalAvaliacoes");
+    const preco = document.getElementById("precoProdutoModalDetalhe");
+    const desc = document.getElementById("descricaoProdutoModalDetalhe");
+    const imgPrincipal = document.getElementById("fotoPrincipalModalDetalhe");
+    const containerMiniaturas = document.getElementById("miniaturasModalDetalhe");
+
+    if (titulo) titulo.textContent = produto.nome || "Detalhes do Produto";
+    if (preco) preco.textContent = formatarMoeda(produto.preco_venda);
+    if (desc) desc.textContent = produto.descricao || "";
+
+    const fotos = obterListaFotosProduto(produto);
+    if (imgPrincipal) {
+      imgPrincipal.src = fotos[0];
+      imgPrincipal.alt = produto.nome || "Foto do produto";
+    }
+
+    if (containerMiniaturas) {
+      containerMiniaturas.textContent = "";
+      if (fotos.length > 1) {
+        fotos.forEach((urlFoto, idx) => {
+          const btnMin = document.createElement("button");
+          btnMin.type = "button";
+          btnMin.className = "galeria-miniatura-btn" + (idx === 0 ? " ativa" : "");
+          const imgMin = document.createElement("img");
+          imgMin.src = urlFoto;
+          imgMin.alt = `Foto ${idx + 1}`;
+          btnMin.appendChild(imgMin);
+          btnMin.addEventListener("click", () => {
+            if (imgPrincipal) imgPrincipal.src = urlFoto;
+            containerMiniaturas
+              .querySelectorAll(".galeria-miniatura-btn")
+              .forEach((b) => b.classList.remove("ativa"));
+            btnMin.classList.add("ativa");
+          });
+          containerMiniaturas.appendChild(btnMin);
+        });
+      }
+    }
+
+    const inputNome = document.getElementById("avalClienteNome");
+    if (inputNome && estado.clienteLogado?.nome && !inputNome.value) {
+      inputNome.value = estado.clienteLogado.nome;
+    }
+
+    renderizarListaAvaliacoesModal(produto.id);
+    modal.classList.add("aberto");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function fecharModalAvaliacoesProduto() {
+    const modal = document.getElementById("modalAvaliacoesProduto");
+    if (!modal) return;
+    modal.classList.remove("aberto");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function renderizarListaAvaliacoesModal(produtoId) {
+    const resumoTopo = document.getElementById("resumoEstrelasModal");
+    const containerLista = document.getElementById("listaAvaliacoesModal");
+    const resumo = obterResumoAvaliacoesProduto(produtoId);
+
+    if (resumoTopo) {
+      resumoTopo.textContent =
+        resumo.total > 0
+          ? `⭐ Nota média: ${resumo.mediaFormatada} de 5 (${resumo.total} ${
+              resumo.total === 1 ? "avaliação de cliente" : "avaliações de clientes"
+            })`
+          : "⭐ Este produto ainda não tem avaliações. Seja o primeiro a avaliar abaixo!";
+    }
+
+    if (!containerLista) return;
+    containerLista.textContent = "";
+
+    resumo.lista.forEach((av) => {
+      const item = document.createElement("div");
+      item.className = "item-avaliacao-cliente";
+
+      const cab = document.createElement("div");
+      cab.className = "item-avaliacao-cabecalho";
+
+      const spNome = document.createElement("span");
+      spNome.className = "item-avaliacao-nome";
+      spNome.textContent = av.cliente_nome || "Cliente";
+
+      const spEstrelas = document.createElement("span");
+      spEstrelas.className = "item-avaliacao-estrelas";
+      const qtdEstrelas = Math.min(5, Math.max(1, parseInt(av.nota, 10) || 5));
+      spEstrelas.textContent = "⭐".repeat(qtdEstrelas);
+
+      cab.appendChild(spNome);
+      cab.appendChild(spEstrelas);
+      item.appendChild(cab);
+
+      const pCom = document.createElement("p");
+      pCom.className = "item-avaliacao-comentario";
+      pCom.textContent = av.comentario || "";
+      item.appendChild(pCom);
+
+      containerLista.appendChild(item);
+    });
+  }
+
+  async function enviarAvaliacaoProdutoSubmit(evento) {
+    evento.preventDefault();
+    const produto = estado.produtoModalAvaliacaoAtual;
+    if (!produto) return;
+
+    const nome = String(document.getElementById("avalClienteNome")?.value || "").trim();
+    const nota = parseInt(document.getElementById("avalNota")?.value || "5", 10) || 5;
+    const comentario = String(document.getElementById("avalComentario")?.value || "").trim();
+
+    if (nome.length < 2 || comentario.length < 2) {
+      mostrarToast("Informe seu nome e escreva seu comentário para enviar a avaliação.");
+      return;
+    }
+
+    const novaAval = {
+      id: "aval-" + Date.now(),
+      produto_id: produto.id,
+      cliente_nome: nome,
+      nota: Math.min(5, Math.max(1, nota)),
+      comentario,
+      criado_em: new Date().toISOString()
+    };
+
+    if (supabaseInstancia) {
+      try {
+        const { data, error } = await supabaseInstancia
+          .from("avaliacoes")
+          .insert([
+            {
+              produto_id: produto.id,
+              cliente_nome: nome,
+              nota: novaAval.nota,
+              comentario
+            }
+          ])
+          .select()
+          .single();
+        if (!error && data) {
+          novaAval.id = data.id;
+        }
+      } catch (_) {}
+    }
+
+    const pid = String(produto.id);
+    if (!Array.isArray(estado.avaliacoesPorProduto[pid])) {
+      estado.avaliacoesPorProduto[pid] = [];
+    }
+    estado.avaliacoesPorProduto[pid].unshift(novaAval);
+    salvarAvaliacoesLocais();
+
+    const campoCom = document.getElementById("avalComentario");
+    if (campoCom) campoCom.value = "";
+
+    renderizarListaAvaliacoesModal(produto.id);
+    renderizarVitrine();
+    mostrarToast("⭐ Obrigado! Sua avaliação foi publicada no produto.");
+  }
+
+  // ==========================================================================
+  // 6. EVENTOS DE INTERFACE (MENU, BUSCA, DRAWER E TOAST)
   // ==========================================================================
 
   let timerToast = null;
@@ -1569,7 +2300,7 @@
     if (timerToast) clearTimeout(timerToast);
     timerToast = setTimeout(() => {
       toast.classList.remove("visivel");
-    }, 2600);
+    }, 3200);
   }
 
   function configurarEventosInterface() {
@@ -1642,14 +2373,85 @@
       });
     }
 
-    if (btnFinalizar) btnFinalizar.addEventListener("click", enviarCarrinhoWhatsapp);
+    if (btnFinalizar) btnFinalizar.addEventListener("click", iniciarFinalizacaoCompraSite);
 
     document.getElementById("selectAreaEntrega")?.addEventListener("change", (e) => {
       estado.areaEntregaSelecionada = e.target.value;
       salvarAreaEntrega();
       atualizarInterfaceCarrinho();
     });
+
+    document.getElementById("selectMetodoPagamentoCarrinho")?.addEventListener("change", (e) => {
+      estado.metodoPagamentoSelecionado = e.target.value;
+      salvarMetodoPagamento();
+      atualizarInterfaceCarrinho();
+    });
+
     if (btnLimpar) btnLimpar.addEventListener("click", limparCarrinho);
+
+    // Modal de Pagamento Mercado Pago
+    const modalPag = document.getElementById("modalPagamentoCheckout");
+    document
+      .getElementById("btnFecharModalPagamento")
+      ?.addEventListener("click", fecharModalPagamentoCheckout);
+    modalPag?.addEventListener("click", (e) => {
+      if (e.target === modalPag) fecharModalPagamentoCheckout();
+    });
+    document
+      .getElementById("abaPagBtnPix")
+      ?.addEventListener("click", () => alternarAbaModalPagamento("pix"));
+    document
+      .getElementById("abaPagBtnCartao")
+      ?.addEventListener("click", () => alternarAbaModalPagamento("cartao"));
+    document.getElementById("btnCopiarCodigoPix")?.addEventListener("click", () => {
+      const inputPix = document.getElementById("inputPixCopiaECola");
+      if (!inputPix) return;
+      navigator.clipboard?.writeText(inputPix.value).catch(() => {
+        inputPix.select();
+        document.execCommand("copy");
+      });
+      mostrarToast("💠 Código Pix Copia e Cola copiado!");
+    });
+    document
+      .getElementById("btnConfirmarPagamentoRealizado")
+      ?.addEventListener("click", confirmarPagamentoRealizado);
+
+    // Modal de Avaliações e Fotos do Produto
+    const modalAval = document.getElementById("modalAvaliacoesProduto");
+    document
+      .getElementById("btnFecharModalAvaliacoes")
+      ?.addEventListener("click", fecharModalAvaliacoesProduto);
+    modalAval?.addEventListener("click", (e) => {
+      if (e.target === modalAval) fecharModalAvaliacoesProduto();
+    });
+    document
+      .getElementById("formAvaliacaoProduto")
+      ?.addEventListener("submit", enviarAvaliacaoProdutoSubmit);
+
+    // Campos de Cidade e Bairro personalizados no Cadastro de Cliente
+    document.getElementById("cadClienteCidade")?.addEventListener("change", (e) => {
+      const boxOutra = document.getElementById("campoCidadePersonalizadaWrap");
+      if (boxOutra) boxOutra.style.display = e.target.value === "__outra__" ? "block" : "none";
+    });
+    document.getElementById("cadClienteBairro")?.addEventListener("change", (e) => {
+      const boxOutro = document.getElementById("campoBairroPersonalizadoWrap");
+      if (boxOutro) boxOutro.style.display = e.target.value === "__outro__" ? "block" : "none";
+    });
+
+    // Salvar data de nascimento no painel logado (para clientes antigos comprarem +18)
+    document.getElementById("btnSalvarDataNascLogado")?.addEventListener("click", () => {
+      const novaData = String(document.getElementById("perfilInputDataNasc")?.value || "").trim();
+      if (!novaData || calcularIdadeAnos(novaData) === null) {
+        mostrarToast("Informe uma data de nascimento válida.");
+        return;
+      }
+      if (estado.clienteLogado) {
+        estado.clienteLogado.data_nascimento = novaData;
+        salvarClienteLogado(estado.clienteLogado);
+        mostrarToast("Data de nascimento salva no seu perfil!");
+        executarAcaoPendentePosLogin();
+      }
+    });
 
     // Modal de Conta do Cliente (Entrar / Cadastrar)
     const modalCliente = document.getElementById("modalContaCliente");
@@ -1695,6 +2497,8 @@
       alternarAbaModalCliente("entrar");
       mostrarToast("Você saiu da sua conta.");
     });
+
+    popularSelectBairrosCadastroCliente();
 
     if (window.location.hash === "#cadastro") {
       abrirModalConta("cadastrar");

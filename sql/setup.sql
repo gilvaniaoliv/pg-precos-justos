@@ -1,9 +1,10 @@
 -- ============================================================================
 -- P&G PREÇOS JUSTOS - SCRIPT DE BANCO DE DADOS E SEGURANÇA (SUPABASE)
--- Fase 1 + Atualização de Categorias e Subcategorias (Cômodos, Masculino/Feminino)
+-- Fase 1 + Atualização Completa (Múltiplas Fotos, +18, Avaliações, Pedidos,
+-- Endereço Estruturado, Categorias/Subcategorias, Taxas/Fretes e Mercado Pago)
 -- ============================================================================
 
--- Extensão para geração de UUIDs
+-- Extensão para geração de UUIDs e criptografia
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
@@ -18,10 +19,8 @@ CREATE TABLE IF NOT EXISTS public.categorias (
     criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Caso a tabela já tenha sido criada antes, adiciona a coluna subcategorias sem perder dados
+-- Caso a tabela já tenha sido criada antes, adiciona as colunas sem perder dados
 ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias TEXT[] NOT NULL DEFAULT '{}';
-
--- Categoria arquivada fica oculta na vitrine (com seus produtos) sem ser apagada
 ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS arquivada BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.categorias ADD COLUMN IF NOT EXISTS subcategorias_arquivadas TEXT[] NOT NULL DEFAULT '{}';
 
@@ -35,8 +34,10 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     categoria_id UUID REFERENCES public.categorias(id) ON DELETE SET NULL,
     subcategoria TEXT DEFAULT '',
     foto_url TEXT DEFAULT '',
+    fotos_urls TEXT[] NOT NULL DEFAULT '{}',
+    maior_idade BOOLEAN NOT NULL DEFAULT false,
 
-    -- Preços e pesquisa de mercado (públicos na vitrine conforme regras)
+    -- Preços e pesquisa de mercado (comparativo visível apenas para o admin)
     preco_venda NUMERIC(10, 2) NOT NULL CHECK (preco_venda >= 0),
     preco_medio_mercado NUMERIC(10, 2) CHECK (preco_medio_mercado IS NULL OR preco_medio_mercado >= 0),
     data_pesquisa DATE,
@@ -55,8 +56,10 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Caso a tabela já tenha sido criada antes, adiciona a coluna subcategoria
+-- Caso a tabela já tenha sido criada antes, adiciona as novas colunas
 ALTER TABLE public.produtos ADD COLUMN IF NOT EXISTS subcategoria TEXT DEFAULT '';
+ALTER TABLE public.produtos ADD COLUMN IF NOT EXISTS fotos_urls TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.produtos ADD COLUMN IF NOT EXISTS maior_idade BOOLEAN NOT NULL DEFAULT false;
 
 -- Índices para deixar filtros e buscas rápidos
 CREATE INDEX IF NOT EXISTS idx_produtos_ativo ON public.produtos(ativo);
@@ -101,6 +104,7 @@ CREATE TABLE IF NOT EXISTS public.vendas (
 -- Taxa (maquininha/Pix) e frete de cada venda, descontados do lucro no relatório
 ALTER TABLE public.vendas ADD COLUMN IF NOT EXISTS taxa NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (taxa >= 0);
 ALTER TABLE public.vendas ADD COLUMN IF NOT EXISTS frete NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (frete >= 0);
+ALTER TABLE public.vendas ADD COLUMN IF NOT EXISTS forma_pagamento TEXT NOT NULL DEFAULT 'Pix';
 
 CREATE INDEX IF NOT EXISTS idx_vendas_data_venda ON public.vendas(data_venda DESC);
 
@@ -183,6 +187,8 @@ SELECT
     c.slug AS categoria_slug,
     p.subcategoria,
     p.foto_url,
+    p.fotos_urls,
+    p.maior_idade,
     p.preco_venda,
     p.preco_medio_mercado,
     p.data_pesquisa,
@@ -269,7 +275,7 @@ BEGIN
         v_produto.nome,
         p_quantidade,
         v_valor_unitario,
-        p_valor_total,
+        v_valor_total,
         v_produto.preco_custo,
         v_abaixo_minimo,
         COALESCE(p_observacao, ''),
@@ -339,19 +345,30 @@ CREATE POLICY "Admin exclui fotos"
 -- ============================================================================
 -- 8. TABELA E FUNÇÕES SEGURAS DE CADASTRO DE CLIENTES DA VITRINE
 -- ============================================================================
--- Observação de segurança: Os clientes da vitrine ficam na tabela 'public.clientes'
--- com senha criptografada (bcrypt via pgcrypto), mantendo o Supabase Auth
--- (role 'authenticated') 100% EXCLUSIVO para você e seu sócio no painel /admin!
-
 CREATE TABLE IF NOT EXISTS public.clientes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL CHECK (char_length(trim(nome)) >= 2 AND char_length(nome) <= 120),
     email TEXT NOT NULL UNIQUE CHECK (position('@' in email) > 1),
     whatsapp TEXT NOT NULL DEFAULT '',
     endereco TEXT NOT NULL DEFAULT '',
+    data_nascimento DATE,
+    pais TEXT NOT NULL DEFAULT 'Brasil',
+    estado TEXT NOT NULL DEFAULT 'BA',
+    cidade TEXT NOT NULL DEFAULT 'Salvador',
+    bairro TEXT NOT NULL DEFAULT '',
+    rua TEXT NOT NULL DEFAULT '',
+    complemento TEXT NOT NULL DEFAULT '',
     senha_hash TEXT NOT NULL,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS data_nascimento DATE;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS pais TEXT NOT NULL DEFAULT 'Brasil';
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'BA';
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS cidade TEXT NOT NULL DEFAULT 'Salvador';
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS bairro TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS rua TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS complemento TEXT NOT NULL DEFAULT '';
 
 ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clientes FORCE ROW LEVEL SECURITY;
@@ -367,13 +384,20 @@ CREATE POLICY "Admin visualiza clientes"
     TO authenticated
     USING (true);
 
--- Função segura para o cliente se cadastrar na vitrine
+-- Função segura para o cliente se cadastrar na vitrine (com endereço estruturado e data de nascimento)
 CREATE OR REPLACE FUNCTION public.cadastrar_cliente_loja(
     p_nome TEXT,
     p_email TEXT,
     p_whatsapp TEXT,
     p_endereco TEXT,
-    p_senha TEXT
+    p_senha TEXT,
+    p_data_nascimento DATE DEFAULT NULL,
+    p_pais TEXT DEFAULT 'Brasil',
+    p_estado TEXT DEFAULT 'BA',
+    p_cidade TEXT DEFAULT 'Salvador',
+    p_bairro TEXT DEFAULT '',
+    p_rua TEXT DEFAULT '',
+    p_complemento TEXT DEFAULT ''
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -399,7 +423,7 @@ BEGIN
     END IF;
 
     IF char_length(trim(COALESCE(p_endereco, ''))) < 5 THEN
-        RAISE EXCEPTION 'O endereço de entrega é obrigatório. Informe rua, número e bairro.';
+        RAISE EXCEPTION 'O endereço de entrega é obrigatório. Selecione estado, cidade, bairro e rua.';
     END IF;
 
     IF char_length(COALESCE(p_senha, '')) < 6 THEN
@@ -410,12 +434,22 @@ BEGIN
         RAISE EXCEPTION 'Este e-mail já está cadastrado. Faça login na aba Entrar.';
     END IF;
 
-    INSERT INTO public.clientes (nome, email, whatsapp, endereco, senha_hash)
+    INSERT INTO public.clientes (
+        nome, email, whatsapp, endereco, data_nascimento,
+        pais, estado, cidade, bairro, rua, complemento, senha_hash
+    )
     VALUES (
         trim(p_nome),
         v_email_limpo,
         trim(COALESCE(p_whatsapp, '')),
         trim(COALESCE(p_endereco, '')),
+        p_data_nascimento,
+        COALESCE(NULLIF(trim(p_pais), ''), 'Brasil'),
+        COALESCE(NULLIF(trim(p_estado), ''), 'BA'),
+        COALESCE(NULLIF(trim(p_cidade), ''), 'Salvador'),
+        trim(COALESCE(p_bairro, '')),
+        trim(COALESCE(p_rua, '')),
+        trim(COALESCE(p_complemento, '')),
         crypt(p_senha, gen_salt('bf'))
     )
     RETURNING id INTO v_cliente_id;
@@ -425,7 +459,14 @@ BEGIN
         'nome', trim(p_nome),
         'email', v_email_limpo,
         'whatsapp', trim(COALESCE(p_whatsapp, '')),
-        'endereco', trim(COALESCE(p_endereco, ''))
+        'endereco', trim(COALESCE(p_endereco, '')),
+        'data_nascimento', p_data_nascimento,
+        'pais', COALESCE(NULLIF(trim(p_pais), ''), 'Brasil'),
+        'estado', COALESCE(NULLIF(trim(p_estado), ''), 'BA'),
+        'cidade', COALESCE(NULLIF(trim(p_cidade), ''), 'Salvador'),
+        'bairro', trim(COALESCE(p_bairro, '')),
+        'rua', trim(COALESCE(p_rua, '')),
+        'complemento', trim(COALESCE(p_complemento, ''))
     );
 END;
 $$;
@@ -456,18 +497,24 @@ BEGIN
         'nome', v_cliente.nome,
         'email', v_cliente.email,
         'whatsapp', v_cliente.whatsapp,
-        'endereco', v_cliente.endereco
+        'endereco', v_cliente.endereco,
+        'data_nascimento', v_cliente.data_nascimento,
+        'pais', v_cliente.pais,
+        'estado', v_cliente.estado,
+        'cidade', v_cliente.cidade,
+        'bairro', v_cliente.bairro,
+        'rua', v_cliente.rua,
+        'complemento', v_cliente.complemento
     );
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.cadastrar_cliente_loja(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cadastrar_cliente_loja(TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.entrar_cliente_loja(TEXT, TEXT) TO anon, authenticated;
 
 -- ============================================================================
--- 9. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (CÔMODOS, MASCULINO/FEMININO, ETC.)
+-- 9. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (INCLUINDO BEBIDAS)
 -- ============================================================================
--- Remove categorias antigas sem produtos vinculados para deixar a nova estrutura limpa
 DELETE FROM public.categorias
 WHERE slug IN ('casa-e-cozinha', 'eletronicos-e-acessorios', 'utilidades-e-ferramentas', 'ofertas-da-semana')
   AND id NOT IN (SELECT DISTINCT categoria_id FROM public.produtos WHERE categoria_id IS NOT NULL);
@@ -515,6 +562,12 @@ VALUES
         'kits-e-promocoes',
         ARRAY['Kits Presente Masculino', 'Kits Presente Feminino', 'Kits para Casa', 'Queima de Estoque'],
         7
+    ),
+    (
+        'Bebidas',
+        'bebidas',
+        ARRAY['Bebidas Alcoólicas', 'Refrigerantes e Sucos', 'Águas e Energéticos'],
+        8
     )
 ON CONFLICT (slug) DO UPDATE SET
     nome = EXCLUDED.nome,
@@ -524,8 +577,6 @@ ON CONFLICT (slug) DO UPDATE SET
 -- ============================================================================
 -- 10. ÁREAS DE ENTREGA (BAIRROS/REGIÕES COM VALOR DO FRETE)
 -- ============================================================================
--- Cadastradas no admin; o cliente escolhe a área no carrinho e o frete
--- é somado ao total do pedido enviado pelo WhatsApp.
 CREATE TABLE IF NOT EXISTS public.areas_entrega (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL CHECK (char_length(trim(nome)) > 0 AND char_length(nome) <= 80),
@@ -542,14 +593,12 @@ ALTER TABLE public.areas_entrega FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Areas ativas visiveis para todos" ON public.areas_entrega;
 DROP POLICY IF EXISTS "Admin gerencia areas de entrega" ON public.areas_entrega;
 
--- Visitantes só enxergam as áreas ativas
 CREATE POLICY "Areas ativas visiveis para todos"
     ON public.areas_entrega
     FOR SELECT
     TO anon
     USING (ativa = true);
 
--- Apenas você e seu sócio (logados) criam, editam ou apagam áreas
 CREATE POLICY "Admin gerencia areas de entrega"
     ON public.areas_entrega
     FOR ALL
@@ -560,3 +609,47 @@ CREATE POLICY "Admin gerencia areas de entrega"
 REVOKE ALL ON TABLE public.areas_entrega FROM anon;
 GRANT SELECT ON TABLE public.areas_entrega TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.areas_entrega TO authenticated;
+
+-- ============================================================================
+-- 11. TABELA DE AVALIAÇÕES DOS CLIENTES NOS PRODUTOS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.avaliacoes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    produto_id UUID NOT NULL REFERENCES public.produtos(id) ON DELETE CASCADE,
+    cliente_nome TEXT NOT NULL CHECK (char_length(trim(cliente_nome)) >= 2 AND char_length(cliente_nome) <= 100),
+    nota INTEGER NOT NULL CHECK (nota >= 1 AND nota <= 5),
+    comentario TEXT NOT NULL DEFAULT '' CHECK (char_length(comentario) <= 600),
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_avaliacoes_produto ON public.avaliacoes(produto_id, criado_em DESC);
+
+ALTER TABLE public.avaliacoes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.avaliacoes FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Avaliacoes visiveis para todos" ON public.avaliacoes;
+DROP POLICY IF EXISTS "Clientes enviam avaliacoes" ON public.avaliacoes;
+DROP POLICY IF EXISTS "Admin gerencia avaliacoes" ON public.avaliacoes;
+
+CREATE POLICY "Avaliacoes visiveis para todos"
+    ON public.avaliacoes
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+CREATE POLICY "Clientes enviam avaliacoes"
+    ON public.avaliacoes
+    FOR INSERT
+    TO anon, authenticated
+    WITH CHECK (nota >= 1 AND nota <= 5 AND char_length(trim(cliente_nome)) >= 2);
+
+CREATE POLICY "Admin gerencia avaliacoes"
+    ON public.avaliacoes
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+REVOKE ALL ON TABLE public.avaliacoes FROM anon;
+GRANT SELECT, INSERT ON TABLE public.avaliacoes TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.avaliacoes TO authenticated;
