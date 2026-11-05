@@ -2762,7 +2762,7 @@
     });
 
     // Salvar data de nascimento no painel logado (para clientes antigos comprarem +18)
-    document.getElementById("btnSalvarDataNascLogado")?.addEventListener("click", () => {
+    document.getElementById("btnSalvarDataNascLogado")?.addEventListener("click", async () => {
       const novaData = String(document.getElementById("perfilInputDataNasc")?.value || "").trim();
       if (!novaData || calcularIdadeAnos(novaData) === null) {
         mostrarToast("Informe uma data de nascimento válida.");
@@ -2771,6 +2771,14 @@
       if (estado.clienteLogado) {
         estado.clienteLogado.data_nascimento = novaData;
         salvarClienteLogado(estado.clienteLogado);
+        if (supabaseInstancia && estado.clienteLogado.email) {
+          try {
+            await supabaseInstancia.rpc("atualizar_data_nascimento_cliente", {
+              p_email: estado.clienteLogado.email,
+              p_data_nascimento: novaData
+            });
+          } catch (_) {}
+        }
         mostrarToast("Data de nascimento salva no seu perfil!");
         executarAcaoPendentePosLogin();
       }

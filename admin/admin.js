@@ -2870,6 +2870,10 @@
       escaparCelulaCSV("Nome Completo"),
       escaparCelulaCSV("WhatsApp"),
       escaparCelulaCSV("E-mail"),
+      escaparCelulaCSV("Data de Nascimento"),
+      escaparCelulaCSV("Bairro"),
+      escaparCelulaCSV("Cidade / Estado"),
+      escaparCelulaCSV("País"),
       escaparCelulaCSV("Endereço Completo de Entrega"),
       escaparCelulaCSV("Data de Cadastro")
     ].join(";"));
@@ -2879,6 +2883,10 @@
         escaparCelulaCSV(c.nome),
         escaparCelulaCSV(c.whatsapp),
         escaparCelulaCSV(c.email),
+        escaparCelulaCSV(c.data_nascimento ? formatarDataBR(c.data_nascimento) : ""),
+        escaparCelulaCSV(c.bairro || ""),
+        escaparCelulaCSV([c.cidade || "Salvador", c.estado || "BA"].filter(Boolean).join(" - ")),
+        escaparCelulaCSV(c.pais || "Brasil"),
         escaparCelulaCSV(c.endereco),
         escaparCelulaCSV(formatarDataHoraBR(c.criado_em))
       ].join(";"));
@@ -3013,6 +3021,10 @@
         escaparCelulaCSV("Nome Completo"),
         escaparCelulaCSV("WhatsApp"),
         escaparCelulaCSV("E-mail"),
+        escaparCelulaCSV("Data de Nascimento"),
+        escaparCelulaCSV("Bairro"),
+        escaparCelulaCSV("Cidade / Estado"),
+        escaparCelulaCSV("País"),
         escaparCelulaCSV("Endereço Completo de Entrega"),
         escaparCelulaCSV("Data de Cadastro")
       ].join(";")
@@ -3024,6 +3036,10 @@
           escaparCelulaCSV(c.nome),
           escaparCelulaCSV(c.whatsapp),
           escaparCelulaCSV(c.email),
+          escaparCelulaCSV(c.data_nascimento ? formatarDataBR(c.data_nascimento) : ""),
+          escaparCelulaCSV(c.bairro || ""),
+          escaparCelulaCSV([c.cidade || "Salvador", c.estado || "BA"].filter(Boolean).join(" - ")),
+          escaparCelulaCSV(c.pais || "Brasil"),
           escaparCelulaCSV(c.endereco),
           escaparCelulaCSV(formatarDataHoraBR(c.criado_em))
         ].join(";")

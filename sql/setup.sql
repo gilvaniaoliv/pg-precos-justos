@@ -384,6 +384,9 @@ CREATE POLICY "Admin visualiza clientes"
     TO authenticated
     USING (true);
 
+-- Remove assinatura antiga (5 parâmetros) caso exista para evitar conflito de sobrecarga no PostgREST
+DROP FUNCTION IF EXISTS public.cadastrar_cliente_loja(TEXT, TEXT, TEXT, TEXT, TEXT);
+
 -- Função segura para o cliente se cadastrar na vitrine (com endereço estruturado e data de nascimento)
 CREATE OR REPLACE FUNCTION public.cadastrar_cliente_loja(
     p_nome TEXT,
@@ -511,6 +514,26 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.cadastrar_cliente_loja(TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.entrar_cliente_loja(TEXT, TEXT) TO anon, authenticated;
+
+-- Função para atualizar data de nascimento de cliente já cadastrado
+CREATE OR REPLACE FUNCTION public.atualizar_data_nascimento_cliente(
+    p_email TEXT,
+    p_data_nascimento DATE
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    UPDATE public.clientes
+    SET data_nascimento = p_data_nascimento
+    WHERE email = lower(trim(COALESCE(p_email, '')));
+    RETURN FOUND;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.atualizar_data_nascimento_cliente(TEXT, DATE) TO anon, authenticated;
 
 -- ============================================================================
 -- 9. CATEGORIAS E SUBCATEGORIAS ORGANIZADAS (INCLUINDO BEBIDAS)
