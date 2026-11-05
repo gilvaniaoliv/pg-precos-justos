@@ -4,3 +4,4 @@ Disallow: /admin/
 
 Sitemap: https://loja.pgprecosjustos.workers.dev/sitemap.xml
 Sitemap: https://gilvaniaoliv.github.io/pg-precos-justos/sitemap.xml
+

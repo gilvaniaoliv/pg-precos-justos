@@ -666,11 +666,7 @@ a {
 }
 
 .produto-descricao {
-  font-size: 0.86rem;
-  font-weight: 400;
-  color: var(--cor-texto-secundario);
-  margin-bottom: 14px;
-  flex: 1;
+  display: none;
 }
 
 .produto-bloco-preco {

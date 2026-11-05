@@ -848,6 +848,9 @@
     const titulo = document.createElement("h3");
     titulo.className = "produto-nome produto-titulo";
     titulo.textContent = produto.nome;
+    titulo.style.cursor = "pointer";
+    titulo.title = "Toque para ver detalhes e avaliações";
+    titulo.addEventListener("click", () => abrirModalAvaliacoesProduto(produto));
     divCorpo.appendChild(titulo);
 
     // Botão de avaliações dos clientes
@@ -2434,7 +2437,12 @@
 
     if (titulo) titulo.textContent = produto.nome || "Detalhes do Produto";
     if (preco) preco.textContent = formatarMoeda(produto.preco_venda);
-    if (desc) desc.textContent = produto.descricao || "";
+    if (desc) {
+      const bruto = String(produto.descricao || "").trim();
+      desc.textContent = bruto
+        .replace(/([a-zà-ú0-9])([A-ZÀ-Ú][a-zà-úA-ZÀ-Ú\s]{1,28}:)/g, "$1\n• $2")
+        .replace(/:\s*(?!\s)/g, ": ");
+    }
 
     const fotos = obterListaFotosProduto(produto);
     if (imgPrincipal) {
@@ -2931,8 +2939,15 @@
     });
 
     if ("serviceWorker" in navigator) {
+      let recarregandoSw = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (recarregandoSw) return;
+        recarregandoSw = true;
+        window.location.reload();
+      });
+
       navigator.serviceWorker
-        .register("sw.js?v=4")
+        .register("sw.js")
         .then((reg) => {
           reg.update().catch(() => {});
         })

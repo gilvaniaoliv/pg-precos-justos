@@ -5,30 +5,30 @@
  * usa a cópia salva quando a pessoa estiver sem internet.
  * Dados do Supabase e outros sites externos nunca são guardados aqui.
  */
-const CACHE = "pg-precos-justos-v4";
-const ARQUIVOS_BASE = [
-  "./",
-  "./index.html",
-  "./style.css?v=4",
-  "./app.js?v=4",
-  "./config.js?v=4",
-  "./img/logo-horizontal.png",
-  "./img/icone-192.png"
-];
+const CACHE = "pg-precos-justos-v5";
 
-self.addEventListener("install", (evento) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
-  evento.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ARQUIVOS_BASE)).catch(() => {})
-  );
 });
 
 self.addEventListener("activate", (evento) => {
   evento.waitUntil(
-    caches
-      .keys()
-      .then((nomes) => Promise.all(nomes.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
-      .then(() => self.clients.claim())
+    (async () => {
+      const nomes = await caches.keys();
+      await Promise.all(nomes.map((n) => caches.delete(n)));
+      await self.clients.claim();
+      const clientes = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true
+      });
+      for (const cliente of clientes) {
+        if (cliente.url && "navigate" in cliente) {
+          try {
+            await cliente.navigate(cliente.url);
+          } catch (_) {}
+        }
+      }
+    })()
   );
 });
 
@@ -41,16 +41,21 @@ self.addEventListener("fetch", (evento) => {
   if (url.pathname.includes("/admin/")) return;
 
   evento.respondWith(
-    fetch(req, { cache: "reload" })
+    fetch(req.url, { cache: "no-store" })
       .then((resposta) => {
-        if (resposta.ok) {
+        if (resposta && resposta.ok) {
           const copia = resposta.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copia));
+          caches
+            .open(CACHE)
+            .then((cache) => cache.put(req, copia))
+            .catch(() => {});
         }
         return resposta;
       })
       .catch(() =>
-        caches.match(req, { ignoreSearch: true }).then((salvo) => salvo || caches.match("./index.html"))
+        caches
+          .match(req, { ignoreSearch: true })
+          .then((salvo) => salvo || caches.match("./index.html"))
       )
   );
 });
