@@ -148,6 +148,9 @@
         <button type="button" id="btnAbrirClientesAdmin" class="btn-secundario-admin">
           👥 Clientes Cadastrados
         </button>
+        <button type="button" id="btnAbrirPedidosAdmin" class="btn-secundario-admin" style="border-color: #0f3d2e; color: #0f3d2e; font-weight: 700;">
+          🛍️ Pedidos da Vitrine
+        </button>
         <button type="button" id="btnGerenciarCategorias" class="btn-secundario-admin">
           🏷️ Gerenciar Categorias
         </button>
@@ -621,6 +624,33 @@
         </div>
 
         <div id="listaClientesAdmin" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       8. MODAL: PEDIDOS DA VITRINE (CLIENTES, ITENS E STATUS)
+       ======================================================================== -->
+  <div id="modalPedidosAdmin" class="modal-overlay" aria-hidden="true">
+    <div class="modal-caixa" style="max-width: 750px;" role="dialog" aria-labelledby="tituloModalPedidosAdmin">
+      <div class="modal-topo">
+        <h2 id="tituloModalPedidosAdmin">🛍️ Pedidos da Vitrine</h2>
+        <button type="button" id="btnFecharModalPedidosAdmin" class="btn-fechar-carrinho" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-corpo">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+          <span id="contagemPedidosAdmin" style="font-size: 0.88rem; color: #57534e; font-weight: 500;">
+            0 pedidos registrados
+          </span>
+          <button type="button" id="btnExportarPedidosExcel" class="btn-primario-admin" style="width: auto; min-height: 40px; padding: 0 14px; font-size: 0.84rem;">
+            📥 Exportar Pedidos (Excel)
+          </button>
+        </div>
+
+        <div id="listaPedidosAdmin" style="display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>

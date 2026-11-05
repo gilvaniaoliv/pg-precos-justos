@@ -1596,15 +1596,15 @@
     }
     const novo = {
       id: "cli-" + Date.now(),
-      ...dados
+      ...dados,
+      senha_hash: btoa(encodeURIComponent(dados.senha + "_pg_salt"))
     };
+    delete novo.senha; // Não armazena senha em texto puro no localStorage
     lista.push(novo);
     try {
       localStorage.setItem(CHAVE_STORAGE_CONTAS_LOCAIS, JSON.stringify(lista));
     } catch (_) {}
-    const copiaSegura = { ...novo };
-    delete copiaSegura.senha;
-    return copiaSegura;
+    return { ...novo };
   }
 
   function loginClienteLocalFallback(email, senha) {
@@ -1614,12 +1614,16 @@
     } catch (_) {
       lista = [];
     }
-    const encontrado = lista.find((c) => c.email === email && c.senha === senha);
+    const hashTentativa = btoa(encodeURIComponent(senha + "_pg_salt"));
+    const encontrado = lista.find(
+      (c) => c.email === email && (c.senha_hash === hashTentativa || c.senha === senha)
+    );
     if (!encontrado) {
       throw new Error("E-mail ou senha incorretos.");
     }
     const copiaSegura = { ...encontrado };
     delete copiaSegura.senha;
+    delete copiaSegura.senha_hash;
     return copiaSegura;
   }
 
@@ -2247,7 +2251,9 @@
   }
 
   function preencherResumoModalPagamento() {
-    const boxResumo = document.getElementById("resumoPagamentoCheckout");
+    const boxResumo =
+      document.getElementById("resumoCheckoutPagamento") ||
+      document.getElementById("resumoPagamentoCheckout");
     if (!boxResumo) return;
 
     const subtotalProdutos = estado.carrinho.reduce(
@@ -2305,28 +2311,60 @@
     divTotal.appendChild(spTot2);
     boxResumo.appendChild(divTotal);
 
+    // Exibe bloco Pix ou Cartão conforme seleção
+    const blocoPix =
+      document.getElementById("blocoPagamentoPixModal") ||
+      document.getElementById("painelPagamentoPix");
+    const blocoCartao =
+      document.getElementById("blocoPagamentoCartaoModal") ||
+      document.getElementById("painelPagamentoCartao");
+
+    if (estado.metodoPagamentoSelecionado === "cartao") {
+      if (blocoPix) blocoPix.style.display = "none";
+      if (blocoCartao) blocoCartao.style.display = "block";
+    } else {
+      if (blocoCartao) blocoCartao.style.display = "none";
+      if (blocoPix) blocoPix.style.display = "block";
+    }
+
     // Atualiza QR Code e código Pix
     const payloadPix = gerarPayloadPixCopiaECola(totalFinal);
     const inputPix = document.getElementById("inputPixCopiaECola");
     if (inputPix) inputPix.value = payloadPix;
 
-    const imgQr = document.getElementById("imgQrCodePix");
+    const imgQr =
+      document.getElementById("imgQrCodePixCheckout") ||
+      document.getElementById("imgQrCodePix");
     if (imgQr) {
+      imgQr.style.display = "block";
       imgQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
         payloadPix
       )}`;
+      imgQr.onerror = () => {
+        imgQr.style.display = "none";
+      };
     }
 
     // Atualiza texto e link do Cartão Mercado Pago
-    const descCartao = document.getElementById("textoDetalheTaxaCartao");
+    const descCartao =
+      document.getElementById("textoInstrucaoCartaoMP") ||
+      document.getElementById("textoDetalheTaxaCartao");
     if (descCartao) {
-      descCartao.textContent = `Valor no Cartão com a taxa do Mercado Pago inclusa: ${formatarMoeda(
+      descCartao.textContent = `Valor no Cartão com taxa do Mercado Pago: ${formatarMoeda(
         totalFinal
-      )}. Você pode parcelar ou pagar à vista no crédito/débito.`;
+      )}. Ao confirmar o pedido, enviaremos o link de pagamento seguro do Mercado Pago ou você poderá pagar na maquininha na entrega/retirada.`;
     }
-    const linkMp = document.getElementById("linkCheckoutMercadoPago");
-    if (linkMp) {
-      linkMp.href = "https://www.mercadopago.com.br/";
+
+    const btnCartaoMP =
+      document.getElementById("btnAbrirLinkCartaoMP") ||
+      document.getElementById("linkCheckoutMercadoPago");
+    if (btnCartaoMP) {
+      if (CFG.MERCADO_PAGO_CHECKOUT_URL) {
+        btnCartaoMP.href = CFG.MERCADO_PAGO_CHECKOUT_URL;
+        btnCartaoMP.style.display = "block";
+      } else {
+        btnCartaoMP.style.display = "none";
+      }
     }
   }
 
@@ -2352,13 +2390,134 @@
     modalPag.setAttribute("aria-hidden", "true");
   }
 
-  function confirmarPagamentoRealizado() {
+  async function confirmarPagamentoRealizado() {
     if (estado.carrinho.length === 0) return;
+
+    const cliente = estado.clienteLogado || {
+      nome: "Cliente",
+      whatsapp: "",
+      email: "",
+      endereco: ""
+    };
+
+    const subtotalProdutos = estado.carrinho.reduce(
+      (acc, item) => acc + Number(item.preco_venda) * item.quantidade,
+      0
+    );
+    const cotacao = calcularCotacaoEntregaPorLocalizacao(subtotalProdutos);
+    let frete = 0;
+    if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
+      frete = cotacao.pronto ? cotacao.valor : 0;
+    }
+    const taxaPag = calcularTaxaPagamento(subtotalProdutos + frete);
+    const totalFinal = subtotalProdutos + frete + taxaPag;
+    const metodoNome =
+      estado.metodoPagamentoSelecionado === "cartao"
+        ? "Cartão de Crédito / Débito (Mercado Pago)"
+        : "Pix (0% Taxa - Mercado Pago)";
+
+    const codigoPedido = `PG-${Date.now().toString(36).toUpperCase()}`;
+    const enderecoFormatado =
+      estado.areaEntregaSelecionada === AREA_RETIRADA
+        ? `Retirada no local: ${CFG.ENDERECO_RETIRADA_LOJA || "Salvador - BA"}`
+        : cliente.endereco || "Entrega em Casa";
+
+    // 1. Salvar no Supabase se disponível
+    if (supabaseInstancia) {
+      try {
+        await supabaseInstancia.rpc("registrar_pedido_vitrine", {
+          p_cliente_id: cliente.id && !String(cliente.id).startsWith("cli-") ? cliente.id : null,
+          p_cliente_nome: cliente.nome,
+          p_cliente_email: cliente.email || "",
+          p_cliente_whatsapp: cliente.whatsapp || "",
+          p_tipo_recebimento: estado.areaEntregaSelecionada || "entrega",
+          p_endereco_entrega: enderecoFormatado,
+          p_itens: estado.carrinho.map((item) => ({
+            id: item.id,
+            nome: item.nome,
+            preco_venda: item.preco_venda,
+            quantidade: item.quantidade,
+            subtotal: Number(item.preco_venda) * item.quantidade
+          })),
+          p_subtotal: subtotalProdutos,
+          p_frete: frete,
+          p_taxa: taxaPag,
+          p_valor_total: totalFinal,
+          p_forma_pagamento: metodoNome,
+          p_observacao: codigoPedido
+        });
+      } catch (errDb) {
+        console.warn("Aviso ao registrar pedido no banco:", errDb);
+      }
+    }
+
+    // 2. Salvar no histórico local do navegador
+    try {
+      const historico = JSON.parse(
+        localStorage.getItem("pg_precos_justos_pedidos_historico_v1") || "[]"
+      );
+      historico.unshift({
+        codigo: codigoPedido,
+        data: new Date().toISOString(),
+        cliente: cliente.nome,
+        whatsapp: cliente.whatsapp,
+        total: totalFinal,
+        itens: [...estado.carrinho],
+        forma_pagamento: metodoNome,
+        recebimento: estado.areaEntregaSelecionada
+      });
+      localStorage.setItem(
+        "pg_precos_justos_pedidos_historico_v1",
+        JSON.stringify(historico.slice(0, 50))
+      );
+    } catch (_) {}
+
+    // 3. Montar mensagem formatada para o WhatsApp do lojista
+    const linhasItens = estado.carrinho
+      .map(
+        (it) =>
+          `• ${it.quantidade}x ${it.nome} — ${formatarMoeda(
+            Number(it.preco_venda) * it.quantidade
+          )}`
+      )
+      .join("\n");
+
+    const msgZap =
+      `🛍️ *NOVO PEDIDO — ${CFG.NOME_LOJA || "P&G PREÇOS JUSTOS"}*\n` +
+      `*Código:* #${codigoPedido}\n` +
+      `--------------------------------------\n` +
+      `👤 *Cliente:* ${cliente.nome}\n` +
+      `📱 *WhatsApp:* ${cliente.whatsapp || "Não informado"}\n` +
+      `📧 *E-mail:* ${cliente.email || "Não informado"}\n` +
+      `📍 *Recebimento:* ${
+        estado.areaEntregaSelecionada === AREA_RETIRADA
+          ? "Retirada no Local (Grátis)"
+          : "Entrega em Casa"
+      }\n` +
+      `🏠 *Endereço:* ${enderecoFormatado}\n\n` +
+      `📦 *ITENS DO PEDIDO:*\n${linhasItens}\n\n` +
+      `--------------------------------------\n` +
+      `💰 *Subtotal Produtos:* ${formatarMoeda(subtotalProdutos)}\n` +
+      `🚚 *Taxa de Entrega:* ${frete === 0 ? "Grátis" : formatarMoeda(frete)}\n` +
+      `💳 *Taxa de Pagamento:* ${taxaPag > 0 ? formatarMoeda(taxaPag) : "R$ 0,00"}\n` +
+      `✨ *TOTAL A PAGAR:* ${formatarMoeda(totalFinal)}\n` +
+      `💵 *Forma de Pagamento:* ${metodoNome}\n` +
+      `--------------------------------------\n` +
+      `✅ *Pedido confirmado no site! Segue o comprovante de pagamento:*`;
+
+    const numeroZap = limparNumeroWhatsapp(CFG.WHATSAPP_NUMERO);
+    const linkWhatsAppPedido = `https://wa.me/${numeroZap}?text=${encodeURIComponent(msgZap)}`;
+
     fecharModalPagamentoCheckout();
     limparCarrinho();
+
     mostrarToast(
-      "✅ Compra registrada com sucesso! Estamos preparando seu pedido. Se tiver qualquer dúvida, chame no ícone do WhatsApp."
+      "✅ Pedido confirmado com sucesso! Abrindo WhatsApp da loja para envio do comprovante..."
     );
+
+    setTimeout(() => {
+      window.open(linkWhatsAppPedido, "_blank");
+    }, 400);
   }
 
   // ==========================================================================
@@ -2743,9 +2902,10 @@
       });
       mostrarToast("💠 Código Pix Copia e Cola copiado!");
     });
-    document
-      .getElementById("btnConfirmarPagamentoRealizado")
-      ?.addEventListener("click", confirmarPagamentoRealizado);
+    const btnConfirmar =
+      document.getElementById("btnConfirmarPedidoPago") ||
+      document.getElementById("btnConfirmarPagamentoRealizado");
+    btnConfirmar?.addEventListener("click", confirmarPagamentoRealizado);
 
     // Modal de Avaliações e Fotos do Produto
     const modalAval = document.getElementById("modalAvaliacoesProduto");

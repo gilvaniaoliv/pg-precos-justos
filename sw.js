@@ -15,19 +15,10 @@ self.addEventListener("activate", (evento) => {
   evento.waitUntil(
     (async () => {
       const nomes = await caches.keys();
-      await Promise.all(nomes.map((n) => caches.delete(n)));
+      await Promise.all(
+        nomes.filter((n) => n !== CACHE).map((n) => caches.delete(n))
+      );
       await self.clients.claim();
-      const clientes = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true
-      });
-      for (const cliente of clientes) {
-        if (cliente.url && "navigate" in cliente) {
-          try {
-            await cliente.navigate(cliente.url);
-          } catch (_) {}
-        }
-      }
     })()
   );
 });

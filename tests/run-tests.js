@@ -39,11 +39,11 @@ function afirmar(condicao, mensagem) {
 }
 
 // Carrega arquivos do projeto para inspeção e execução
-const sqlContent = fs.readFileSync(path.join(RAIZ, "sql", "setup.sql"), "utf8");
-const configContent = fs.readFileSync(path.join(RAIZ, "config.js"), "utf8");
-const appContent = fs.readFileSync(path.join(RAIZ, "app.js"), "utf8");
-const adminContent = fs.readFileSync(path.join(RAIZ, "admin", "admin.js"), "utf8");
-const indexHtml = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
+const sqlContent = fs.readFileSync(path.join(RAIZ, "sql", "setup.sql"), "utf8").replace(/\r\n/g, "\n");
+const configContent = fs.readFileSync(path.join(RAIZ, "config.js"), "utf8").replace(/\r\n/g, "\n");
+const appContent = fs.readFileSync(path.join(RAIZ, "app.js"), "utf8").replace(/\r\n/g, "\n");
+const adminContent = fs.readFileSync(path.join(RAIZ, "admin", "admin.js"), "utf8").replace(/\r\n/g, "\n");
+const indexHtml = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8").replace(/\r\n/g, "\n");
 
 // Carrega utilitários da vitrine em ambiente simulado window
 global.window = {};

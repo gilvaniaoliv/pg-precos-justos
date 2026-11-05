@@ -374,7 +374,7 @@
       inicioMes.setDate(1);
       inicioMes.setHours(0, 0, 0, 0);
 
-      const [resCat, resProd, resVendas, resClientes] = await Promise.all([
+      const [resCat, resProd, resVendas, resClientes, resPedidos] = await Promise.all([
         supabaseClient
           .from("categorias")
           .select("*")
@@ -390,6 +390,10 @@
           .order("data_venda", { ascending: false }),
         supabaseClient
           .from("clientes")
+          .select("*")
+          .order("criado_em", { ascending: false }),
+        supabaseClient
+          .from("pedidos")
           .select("*")
           .order("criado_em", { ascending: false })
       ]);
@@ -409,6 +413,18 @@
         estado.clientes = resClientes.data;
       } else {
         estado.clientes = carregarClientesLocaisFallback();
+      }
+
+      if (resPedidos && !resPedidos.error && Array.isArray(resPedidos.data)) {
+        estado.pedidos = resPedidos.data;
+      } else {
+        try {
+          estado.pedidos = JSON.parse(
+            localStorage.getItem("pg_precos_justos_pedidos_historico_v1") || "[]"
+          );
+        } catch (_) {
+          estado.pedidos = [];
+        }
       }
 
       atualizarSelectsCategorias();
@@ -3051,6 +3067,193 @@
   }
 
   // ==========================================================================
+  // 9.3 GESTÃO DE PEDIDOS DA VITRINE (HISTÓRICO E EXPORTAÇÃO)
+  // ==========================================================================
+
+  function abrirModalPedidosAdmin() {
+    const modal = document.getElementById("modalPedidosAdmin");
+    renderizarListaPedidosAdmin();
+    if (modal) {
+      modal.classList.add("aberto");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function fecharModalPedidosAdmin() {
+    const modal = document.getElementById("modalPedidosAdmin");
+    if (modal) {
+      modal.classList.remove("aberto");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function renderizarListaPedidosAdmin() {
+    const container = document.getElementById("listaPedidosAdmin");
+    const elContagem = document.getElementById("contagemPedidosAdmin");
+    if (!container) return;
+
+    const lista = estado.pedidos || [];
+    if (elContagem) {
+      elContagem.textContent = `${lista.length} ${
+        lista.length === 1 ? "pedido registrado" : "pedidos registrados"
+      }`;
+    }
+
+    container.textContent = "";
+
+    if (lista.length === 0) {
+      const vazio = document.createElement("div");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhum pedido da vitrine registrado ainda.";
+      container.appendChild(vazio);
+      return;
+    }
+
+    lista.forEach((ped) => {
+      const card = document.createElement("div");
+      card.className = "carrinho-item";
+      card.style.flexDirection = "column";
+      card.style.alignItems = "stretch";
+      card.style.gap = "8px";
+      card.style.padding = "14px";
+      card.style.background = "#fff";
+      card.style.border = "1px solid #e7e5e4";
+      card.style.borderRadius = "8px";
+
+      const topo = document.createElement("div");
+      topo.style.display = "flex";
+      topo.style.justifyContent = "space-between";
+      topo.style.alignItems = "center";
+      topo.style.flexWrap = "wrap";
+      topo.style.gap = "6px";
+
+      const spCod = document.createElement("strong");
+      spCod.style.color = "#0f3d2e";
+      spCod.style.fontSize = "0.95rem";
+      spCod.textContent = `🛍️ Pedido #${ped.codigo_pedido || ped.codigo || "PG"}`;
+
+      const spData = document.createElement("span");
+      spData.style.fontSize = "0.78rem";
+      spData.style.color = "#78716c";
+      spData.textContent = formatarDataHoraBR(ped.criado_em || ped.data);
+
+      topo.appendChild(spCod);
+      topo.appendChild(spData);
+      card.appendChild(topo);
+
+      const divCli = document.createElement("div");
+      divCli.style.fontSize = "0.85rem";
+      divCli.style.color = "#292524";
+      divCli.textContent = `Cliente: ${ped.cliente_nome || ped.cliente || "Não informado"} • ${ped.forma_pagamento || "Pix"} • ${ped.tipo_recebimento === "retirada" ? "Retirada no Local" : "Entrega em Casa"}`;
+      card.appendChild(divCli);
+
+      if (ped.endereco_entrega) {
+        const divEnd = document.createElement("div");
+        divEnd.style.fontSize = "0.8rem";
+        divEnd.style.color = "#57534e";
+        divEnd.textContent = `📍 Endereço: ${ped.endereco_entrega}`;
+        card.appendChild(divEnd);
+      }
+
+      // Itens
+      const divItens = document.createElement("div");
+      divItens.style.fontSize = "0.82rem";
+      divItens.style.color = "#44403c";
+      divItens.style.background = "#f5f5f4";
+      divItens.style.padding = "6px 10px";
+      divItens.style.borderRadius = "6px";
+
+      let itensArr = Array.isArray(ped.itens) ? ped.itens : [];
+      if (typeof ped.itens === "string") {
+        try {
+          itensArr = JSON.parse(ped.itens);
+        } catch (_) {}
+      }
+      divItens.textContent =
+        itensArr.length > 0
+          ? itensArr.map((it) => `${it.quantidade}x ${it.nome}`).join(" | ")
+          : "Itens do pedido registrados";
+      card.appendChild(divItens);
+
+      // Rodapé com valores e botão de WhatsApp
+      const rodape = document.createElement("div");
+      rodape.style.display = "flex";
+      rodape.style.justifyContent = "space-between";
+      rodape.style.alignItems = "center";
+      rodape.style.flexWrap = "wrap";
+      rodape.style.gap = "8px";
+      rodape.style.marginTop = "4px";
+
+      const spValores = document.createElement("span");
+      spValores.style.fontWeight = "700";
+      spValores.style.fontSize = "0.92rem";
+      spValores.style.color = "#11382a";
+      spValores.textContent = `Total: ${formatarMoeda(ped.valor_total || ped.total || 0)}`;
+
+      const zapLimpo = String(ped.cliente_whatsapp || ped.whatsapp || "").replace(/\D/g, "");
+      if (zapLimpo.length >= 8) {
+        const btnZap = document.createElement("a");
+        btnZap.href = `https://wa.me/55${zapLimpo.replace(/^55/, "")}`;
+        btnZap.target = "_blank";
+        btnZap.rel = "noopener noreferrer";
+        btnZap.className = "btn-secundario-admin";
+        btnZap.style.fontSize = "0.78rem";
+        btnZap.style.padding = "4px 8px";
+        btnZap.style.minHeight = "auto";
+        btnZap.textContent = "💬 Falar no WhatsApp";
+        rodape.appendChild(btnZap);
+      }
+
+      rodape.appendChild(spValores);
+      card.appendChild(rodape);
+      container.appendChild(card);
+    });
+  }
+
+  function exportarPedidosExcel() {
+    const linhas = [
+      [
+        escaparCelulaCSV("Código"),
+        escaparCelulaCSV("Data / Hora"),
+        escaparCelulaCSV("Cliente"),
+        escaparCelulaCSV("WhatsApp"),
+        escaparCelulaCSV("E-mail"),
+        escaparCelulaCSV("Recebimento"),
+        escaparCelulaCSV("Endereço"),
+        escaparCelulaCSV("Subtotal"),
+        escaparCelulaCSV("Frete"),
+        escaparCelulaCSV("Taxa"),
+        escaparCelulaCSV("Valor Total"),
+        escaparCelulaCSV("Pagamento"),
+        escaparCelulaCSV("Status")
+      ].join(";")
+    ];
+
+    (estado.pedidos || []).forEach((p) => {
+      linhas.push(
+        [
+          escaparCelulaCSV(p.codigo_pedido || p.codigo || ""),
+          escaparCelulaCSV(formatarDataHoraBR(p.criado_em || p.data)),
+          escaparCelulaCSV(p.cliente_nome || p.cliente || ""),
+          escaparCelulaCSV(p.cliente_whatsapp || p.whatsapp || ""),
+          escaparCelulaCSV(p.cliente_email || p.email || ""),
+          escaparCelulaCSV(p.tipo_recebimento || ""),
+          escaparCelulaCSV(p.endereco_entrega || ""),
+          escaparCelulaCSV(p.subtotal || 0),
+          escaparCelulaCSV(p.frete || 0),
+          escaparCelulaCSV(p.taxa || 0),
+          escaparCelulaCSV(p.valor_total || p.total || 0),
+          escaparCelulaCSV(p.forma_pagamento || "Pix"),
+          escaparCelulaCSV(p.status || "Pendente")
+        ].join(";")
+      );
+    });
+
+    baixarArquivoCSV("pedidos-vitrine-pg-precos-justos.csv", linhas);
+    mostrarToast("Lista de pedidos exportada para o Excel!");
+  }
+
+  // ==========================================================================
   // 10. EVENTOS E INICIALIZAÇÃO DO PAINEL
   // ==========================================================================
 
@@ -3271,6 +3474,17 @@
     document
       .getElementById("btnExportarClientesExcel")
       ?.addEventListener("click", exportarClientesExcel);
+
+    // Modal de Pedidos da Vitrine
+    document
+      .getElementById("btnAbrirPedidosAdmin")
+      ?.addEventListener("click", abrirModalPedidosAdmin);
+    document
+      .getElementById("btnFecharModalPedidosAdmin")
+      ?.addEventListener("click", fecharModalPedidosAdmin);
+    document
+      .getElementById("btnExportarPedidosExcel")
+      ?.addEventListener("click", exportarPedidosExcel);
   }
 
   // Botão "olhinho" para mostrar/ocultar a senha em todos os campos de senha

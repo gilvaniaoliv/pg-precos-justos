@@ -676,3 +676,125 @@ CREATE POLICY "Admin gerencia avaliacoes"
 REVOKE ALL ON TABLE public.avaliacoes FROM anon;
 GRANT SELECT, INSERT ON TABLE public.avaliacoes TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.avaliacoes TO authenticated;
+
+-- ============================================================================
+-- 12. TABELA E FUNÇÕES SEGURAS PARA PEDIDOS DA VITRINE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.pedidos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_pedido TEXT NOT NULL UNIQUE,
+    cliente_id UUID REFERENCES public.clientes(id) ON DELETE SET NULL,
+    cliente_nome TEXT NOT NULL,
+    cliente_email TEXT NOT NULL,
+    cliente_whatsapp TEXT NOT NULL,
+    tipo_recebimento TEXT NOT NULL DEFAULT 'entrega', -- 'entrega' ou 'retirada'
+    endereco_entrega TEXT NOT NULL DEFAULT '',
+    itens JSONB NOT NULL DEFAULT '[]'::jsonb,
+    subtotal NUMERIC(10, 2) NOT NULL CHECK (subtotal >= 0),
+    frete NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (frete >= 0),
+    taxa NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (taxa >= 0),
+    valor_total NUMERIC(10, 2) NOT NULL CHECK (valor_total >= 0),
+    forma_pagamento TEXT NOT NULL DEFAULT 'Pix',
+    status TEXT NOT NULL DEFAULT 'Pendente', -- 'Pendente', 'Pago', 'Enviado', 'Entregue', 'Cancelado'
+    observacao TEXT DEFAULT '',
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_criado_em ON public.pedidos(criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_status ON public.pedidos(status);
+
+ALTER TABLE public.pedidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pedidos FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin gerencia pedidos" ON public.pedidos;
+CREATE POLICY "Admin gerencia pedidos"
+    ON public.pedidos
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+REVOKE ALL ON TABLE public.pedidos FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.pedidos TO authenticated;
+
+-- Função segura com SECURITY DEFINER para a vitrine registrar o pedido
+CREATE OR REPLACE FUNCTION public.registrar_pedido_vitrine(
+    p_cliente_id UUID,
+    p_cliente_nome TEXT,
+    p_cliente_email TEXT,
+    p_cliente_whatsapp TEXT,
+    p_tipo_recebimento TEXT,
+    p_endereco_entrega TEXT,
+    p_itens JSONB,
+    p_subtotal NUMERIC,
+    p_frete NUMERIC,
+    p_taxa NUMERIC,
+    p_valor_total NUMERIC,
+    p_forma_pagamento TEXT,
+    p_observacao TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_codigo TEXT;
+    v_pedido_id UUID;
+BEGIN
+    IF char_length(trim(COALESCE(p_cliente_nome, ''))) < 2 THEN
+        RAISE EXCEPTION 'Nome do cliente é obrigatório.';
+    END IF;
+    IF p_valor_total IS NULL OR p_valor_total <= 0 THEN
+        RAISE EXCEPTION 'Valor do pedido inválido.';
+    END IF;
+
+    -- Gera código amigável tipo PG-XXXX
+    v_codigo := 'PG-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+
+    INSERT INTO public.pedidos (
+        codigo_pedido,
+        cliente_id,
+        cliente_nome,
+        cliente_email,
+        cliente_whatsapp,
+        tipo_recebimento,
+        endereco_entrega,
+        itens,
+        subtotal,
+        frete,
+        taxa,
+        valor_total,
+        forma_pagamento,
+        observacao
+    )
+    VALUES (
+        v_codigo,
+        p_cliente_id,
+        trim(p_cliente_nome),
+        lower(trim(COALESCE(p_cliente_email, ''))),
+        trim(COALESCE(p_cliente_whatsapp, '')),
+        COALESCE(p_tipo_recebimento, 'entrega'),
+        COALESCE(p_endereco_entrega, ''),
+        COALESCE(p_itens, '[]'::jsonb),
+        COALESCE(p_subtotal, 0),
+        COALESCE(p_frete, 0),
+        COALESCE(p_taxa, 0),
+        p_valor_total,
+        COALESCE(p_forma_pagamento, 'Pix'),
+        COALESCE(p_observacao, '')
+    )
+    RETURNING id INTO v_pedido_id;
+
+    RETURN jsonb_build_object(
+        'id', v_pedido_id,
+        'codigo_pedido', v_codigo,
+        'valor_total', p_valor_total
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.registrar_pedido_vitrine(
+    UUID, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT
+) TO anon, authenticated;
+
