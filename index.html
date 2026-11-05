@@ -409,10 +409,79 @@
       <div id="carrinhoItens" class="carrinho-itens"></div>
 
       <div class="carrinho-rodape">
-        <!-- 1. Opção de Retirada ou Entrega em Casa com cálculo de taxa -->
+        <!-- 1. Opção de Retirada ou Entrega em Casa com cálculo automático por Bairro, Estado e País (Plataforma de Entregas) -->
         <div id="blocoEntregaCarrinho" class="carrinho-entrega" style="display: none;">
           <label for="selectAreaEntrega">🚚 1. Escolha Entrega em Casa ou Retirada:</label>
-          <select id="selectAreaEntrega"></select>
+          <select id="selectAreaEntrega">
+            <option value="">Selecione: Entrega em casa ou Retirada...</option>
+            <option value="entrega">🚚 Entrega em casa</option>
+            <option value="retirada">🏪 Retirada no local (Grátis)</option>
+          </select>
+
+          <!-- Cálculo sincronizado com a Plataforma de Entregas por País, Estado, Cidade e Bairro -->
+          <div id="blocoEnderecoCalculoEntrega" class="box-calculo-entrega-carrinho" style="display: none; margin-top: 8px; padding: 10px; background: #f8f7f3; border: 1px solid #e5e3dc; border-radius: 10px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: #0f3d2e; margin-bottom: 6px;">
+              📍 Local de Entrega (Sincronizado com Plataforma de Entregas):
+            </div>
+            <div class="grade-campos-cliente-dupla" style="gap: 6px; margin-bottom: 6px;">
+              <div>
+                <select id="carrinhoCalcPais" class="select-padrao-cliente" style="min-height: 36px; font-size: 0.8rem; padding: 4px 8px;" aria-label="País de entrega">
+                  <option value="Brasil" selected>Brasil</option>
+                </select>
+              </div>
+              <div>
+                <select id="carrinhoCalcEstado" class="select-padrao-cliente" style="min-height: 36px; font-size: 0.8rem; padding: 4px 8px;" aria-label="Estado de entrega">
+                  <option value="BA" selected>Bahia (BA)</option>
+                  <option value="SE">Sergipe (SE)</option>
+                  <option value="PE">Pernambuco (PE)</option>
+                  <option value="AL">Alagoas (AL)</option>
+                  <option value="PB">Paraíba (PB)</option>
+                  <option value="RN">Rio Grande do Norte (RN)</option>
+                  <option value="CE">Ceará (CE)</option>
+                  <option value="MA">Maranhão (MA)</option>
+                  <option value="PI">Piauí (PI)</option>
+                  <option value="SP">São Paulo (SP)</option>
+                  <option value="RJ">Rio de Janeiro (RJ)</option>
+                  <option value="MG">Minas Gerais (MG)</option>
+                  <option value="ES">Espírito Santo (ES)</option>
+                  <option value="DF">Distrito Federal (DF)</option>
+                  <option value="GO">Goiás (GO)</option>
+                  <option value="PR">Paraná (PR)</option>
+                  <option value="SC">Santa Catarina (SC)</option>
+                  <option value="RS">Rio Grande do Sul (RS)</option>
+                  <option value="PA">Pará (PA)</option>
+                  <option value="AM">Amazonas (AM)</option>
+                  <option value="MT">Mato Grosso (MT)</option>
+                  <option value="MS">Mato Grosso do Sul (MS)</option>
+                  <option value="TO">Tocantins (TO)</option>
+                  <option value="RO">Rondônia (RO)</option>
+                  <option value="AC">Acre (AC)</option>
+                  <option value="AP">Amapá (AP)</option>
+                  <option value="RR">Roraima (RR)</option>
+                </select>
+              </div>
+            </div>
+            <div class="grade-campos-cliente-dupla" style="gap: 6px;">
+              <div>
+                <select id="carrinhoCalcCidade" class="select-padrao-cliente" style="min-height: 36px; font-size: 0.8rem; padding: 4px 8px;" aria-label="Cidade de entrega">
+                  <option value="Salvador" selected>Salvador</option>
+                  <option value="Lauro de Freitas">Lauro de Freitas</option>
+                  <option value="Camaçari">Camaçari</option>
+                  <option value="Simões Filho">Simões Filho</option>
+                  <option value="Candeias">Candeias</option>
+                  <option value="Feira de Santana">Feira de Santana</option>
+                  <option value="Outra cidade">Outra cidade</option>
+                </select>
+              </div>
+              <div>
+                <select id="carrinhoCalcBairro" class="select-padrao-cliente" style="min-height: 36px; font-size: 0.8rem; padding: 4px 8px;" aria-label="Bairro de entrega">
+                  <option value="">Selecione o bairro...</option>
+                </select>
+              </div>
+            </div>
+            <small id="resumoPlataformaEntrega" style="display: block; margin-top: 6px; font-size: 0.76rem; color: #0f3d2e; font-weight: 600;"></small>
+          </div>
+
           <small id="avisoAreaEntrega" class="carrinho-entrega-aviso"></small>
         </div>
 
@@ -423,6 +492,7 @@
             <option value="pix">💠 Pix (Mercado Pago — 0% de taxa)</option>
             <option value="cartao">💳 Cartão de Crédito / Débito (Mercado Pago)</option>
           </select>
+          <small id="avisoTaxaPagamentoCarrinho" class="carrinho-entrega-aviso" style="color: #0f3d2e;"></small>
         </div>
 
         <!-- 3. Confirmação obrigatória +18 quando houver bebida alcoólica no carrinho -->

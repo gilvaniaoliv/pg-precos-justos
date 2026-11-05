@@ -54,6 +54,10 @@ window.LOJA_CONFIG = {
   MERCADO_PAGO_ACCESS_TOKEN: "", // Opcional: configurável localmente no painel /admin
   ENDERECO_RETIRADA_LOJA: "Salvador - BA (Horário agendado após confirmação do pagamento)",
 
+  // Plataforma de Entregas sincronizada (calcula com base em País, Estado, Cidade e Bairro)
+  PLATAFORMA_ENTREGA_NOME: "Mercado Envios / Parceiro de Entregas",
+  PLATAFORMA_ENTREGA_API_URL: "", // Endpoint opcional de cotação externa (se vazio, calcula pela tabela sincronizada de Bairro/Cidade/Estado/País)
+
   // ==========================================================================
   // 4. REGRAS DE EXIBIÇÃO E SEGURANÇA
   // ==========================================================================

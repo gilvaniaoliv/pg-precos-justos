@@ -21,17 +21,95 @@
   const CHAVE_STORAGE_AREA_ENTREGA = "pg_precos_justos_area_entrega_v1";
   const CHAVE_STORAGE_METODO_PAGAMENTO = "pg_precos_justos_metodo_pagamento_v1";
   const CHAVE_STORAGE_AVALIACOES = "pg_precos_justos_avaliacoes_v1";
-  const AREA_FORA_DA_LISTA = "fora";
+  const CHAVE_STORAGE_LOCAL_ENTREGA = "pg_precos_justos_local_entrega_v1";
+  const MODO_ENTREGA_CASA = "entrega";
   const AREA_RETIRADA = "retirada";
   let supabaseInstancia = null;
 
-  const AREAS_ENTREGA_PADRAO = [
-    { id: "padrao-centro", nome: "Centro / Nazaré / Barris", valor: 8.0, gratis_acima: 120.0 },
-    { id: "padrao-brotas", nome: "Brotas / Cabula / Pernambués", valor: 10.0, gratis_acima: 150.0 },
-    { id: "padrao-pituba", nome: "Pituba / Itaigara / Rio Vermelho / Barra", valor: 12.0, gratis_acima: 160.0 },
-    { id: "padrao-itapua", nome: "Imbuí / Boca do Rio / Stiep / Itapuã", valor: 14.0, gratis_acima: 180.0 },
-    { id: "padrao-suburbio", nome: "Cidade Baixa / Cajazeiras / Subúrbio", valor: 12.0, gratis_acima: 160.0 },
-    { id: "padrao-lauro", nome: "Lauro de Freitas / Região Metropolitana", valor: 18.0, gratis_acima: 220.0 }
+  // Lista limpa de bairros para seleção individual no cadastro e no cálculo de entrega
+  const BAIRROS_SALVADOR_E_RMS = [
+    "Centro",
+    "Nazaré",
+    "Barris",
+    "Campo Grande",
+    "Graça",
+    "Barra",
+    "Ondina",
+    "Rio Vermelho",
+    "Federação",
+    "Engenho Velho de Brotas",
+    "Brotas",
+    "Acupe de Brotas",
+    "Horto Florestal",
+    "Candeal",
+    "Itaigara",
+    "Pituba",
+    "Parque Bela Vista",
+    "Caminho das Árvores",
+    "Costa Azul",
+    "Stiep",
+    "Armação",
+    "Jardim Armação",
+    "Boca do Rio",
+    "Imbuí",
+    "Patamares",
+    "Piatã",
+    "Itapuã",
+    "Stella Maris",
+    "Flamengo",
+    "Paralela",
+    "Cabula",
+    "Resgate",
+    "Pernambués",
+    "Saramandaia",
+    "Narandiba",
+    "Saboeiro",
+    "Tancredo Neves",
+    "Sussuarana",
+    "Novo Horizonte",
+    "Mata Escura",
+    "São Gonçalo",
+    "Pau da Lima",
+    "São Marcos",
+    "São Rafael",
+    "Castelo Branco",
+    "Cajazeiras",
+    "Águas Claras",
+    "Valéria",
+    "Liberdade",
+    "Caixa D'Água",
+    "IAPI",
+    "Pero Vaz",
+    "Santa Mônica",
+    "Cidade Nova",
+    "Comércio",
+    "Calçada",
+    "Mares",
+    "Roma",
+    "Bonfim",
+    "Monte Serrat",
+    "Ribeira",
+    "Massaranduba",
+    "Uruguai",
+    "Fazenda Grande do Retiro",
+    "São Caetano",
+    "Lobato",
+    "Plataforma",
+    "Itacaranha",
+    "Escada",
+    "Periperi",
+    "Praia Grande",
+    "Coutos",
+    "Paripe",
+    "São Tomé de Paripe",
+    "Vilas do Atlântico",
+    "Buraquinho",
+    "Ipitanga",
+    "Itinga",
+    "Centro (Lauro de Freitas)",
+    "Caji",
+    "Portão",
+    "Abrantes"
   ];
 
   // Mapa padrão de subcategorias organizadas (Cômodos, Masculino/Feminino, Bebidas, etc.)
@@ -60,8 +138,9 @@
     carrinho: carregarCarrinhoSalvo(),
     clienteLogado: carregarClienteSalvo(),
     acaoPendenteCompra: null,
-    areasEntrega: [...AREAS_ENTREGA_PADRAO],
+    areasEntrega: [],
     areaEntregaSelecionada: carregarAreaEntregaSalva(),
+    localizacaoEntrega: carregarLocalizacaoEntregaSalva(),
     metodoPagamentoSelecionado: carregarMetodoPagamentoSalvo(),
     checkMaiorIdadeConfirmado: false,
     avaliacoesPorProduto: carregarAvaliacoesLocais(),
@@ -391,7 +470,7 @@
       mostrarToast("Não foi possível carregar os produtos no momento.");
     }
 
-    // Áreas de entrega (carregadas à parte: se a tabela ainda não existir, usa as áreas padrão da loja)
+    // Áreas de entrega sincronizadas do banco (se houver)
     try {
       const { data, error } = await supabaseInstancia
         .from("areas_entrega")
@@ -400,10 +479,10 @@
         .order("ordem", { ascending: true })
         .order("nome", { ascending: true });
       if (error) throw error;
-      estado.areasEntrega = Array.isArray(data) && data.length > 0 ? data : [...AREAS_ENTREGA_PADRAO];
+      estado.areasEntrega = Array.isArray(data) ? data : [];
     } catch (erro) {
-      console.warn("Áreas de entrega indisponíveis, usando áreas padrão:", erro);
-      estado.areasEntrega = [...AREAS_ENTREGA_PADRAO];
+      console.warn("Áreas de entrega personalizadas indisponíveis:", erro);
+      estado.areasEntrega = [];
     }
 
     await carregarAvaliacoesBanco();
@@ -1077,76 +1156,134 @@
     try {
       if (cliente) {
         localStorage.setItem(CHAVE_STORAGE_CLIENTE, JSON.stringify(cliente));
+        // Sincroniza automaticamente País, Estado, Cidade e Bairro do cliente logado com o calculador de entregas
+        sincronizarLocalizacaoComClienteLogado(cliente);
       } else {
         localStorage.removeItem(CHAVE_STORAGE_CLIENTE);
       }
     } catch (_) {}
     atualizarInterfaceContaCliente();
+    atualizarInterfaceCarrinho();
+  }
+
+  function carregarLocalizacaoEntregaSalva() {
+    try {
+      const bruto = localStorage.getItem(CHAVE_STORAGE_LOCAL_ENTREGA);
+      if (bruto) {
+        const lido = JSON.parse(bruto);
+        if (lido && typeof lido === "object") {
+          return {
+            pais: lido.pais || "Brasil",
+            estado: lido.estado || "BA",
+            cidade: lido.cidade || "Salvador",
+            bairro: lido.bairro || ""
+          };
+        }
+      }
+    } catch (_) {}
+    return {
+      pais: "Brasil",
+      estado: "BA",
+      cidade: "Salvador",
+      bairro: ""
+    };
+  }
+
+  function salvarLocalizacaoEntrega() {
+    try {
+      localStorage.setItem(
+        CHAVE_STORAGE_LOCAL_ENTREGA,
+        JSON.stringify(estado.localizacaoEntrega)
+      );
+    } catch (_) {}
+  }
+
+  function sincronizarLocalizacaoComClienteLogado(cliente) {
+    if (!cliente) return;
+    if (cliente.pais) estado.localizacaoEntrega.pais = cliente.pais;
+    if (cliente.estado) estado.localizacaoEntrega.estado = cliente.estado;
+    if (cliente.cidade) estado.localizacaoEntrega.cidade = cliente.cidade;
+    if (cliente.bairro) {
+      estado.localizacaoEntrega.bairro = cliente.bairro;
+    } else if (cliente.endereco) {
+      // Se o cliente tinha endereço antigo em texto, tenta identificar o bairro cadastrado
+      const endLower = String(cliente.endereco).toLowerCase();
+      const bairroAchado = BAIRROS_SALVADOR_E_RMS.find((b) =>
+        endLower.includes(b.toLowerCase())
+      );
+      if (bairroAchado) {
+        estado.localizacaoEntrega.bairro = bairroAchado;
+      }
+    }
+    salvarLocalizacaoEntrega();
   }
 
   function popularSelectBairrosCadastroCliente() {
+    const nomesAreas = (estado.areasEntrega || [])
+      .map((a) => String(a.nome || "").trim())
+      .filter((n) => n && !n.includes("/"));
+    const todosBairros = Array.from(new Set([...BAIRROS_SALVADOR_E_RMS, ...nomesAreas]));
+
+    // 1. Select de bairro do formulário de Cadastro de Cliente
     const selectBairro = document.getElementById("cadClienteBairro");
-    if (!selectBairro) return;
-    const valorAtual = selectBairro.value;
+    if (selectBairro) {
+      const valorAtual = selectBairro.value;
+      selectBairro.textContent = "";
+      const optPadrao = document.createElement("option");
+      optPadrao.value = "";
+      optPadrao.textContent = "Selecione seu bairro...";
+      selectBairro.appendChild(optPadrao);
 
-    const bairrosBase = [
-      "Centro",
-      "Nazaré",
-      "Barris",
-      "Brotas",
-      "Cabula",
-      "Pernambués",
-      "Pituba",
-      "Itaigara",
-      "Rio Vermelho",
-      "Barra",
-      "Ondina",
-      "Federação",
-      "Graça",
-      "Imbuí",
-      "Boca do Rio",
-      "Stiep",
-      "Costa Azul",
-      "Armação",
-      "Itapuã",
-      "Piatã",
-      "Paralela",
-      "Cajazeiras",
-      "São Marcos",
-      "Pau da Lima",
-      "Sussuarana",
-      "Liberdade",
-      "Cidade Baixa",
-      "Ribeira",
-      "Bonfim",
-      " Calçada",
-      "Periperi",
-      "Paripe",
-      "Lauro de Freitas (Centro / Vilas / Itinga)"
-    ];
+      todosBairros.forEach((b) => {
+        const opt = document.createElement("option");
+        opt.value = b.trim();
+        opt.textContent = b.trim();
+        selectBairro.appendChild(opt);
+      });
 
-    const nomesAreas = (estado.areasEntrega || []).map((a) => String(a.nome || "").trim()).filter(Boolean);
-    const todosBairros = Array.from(new Set([...nomesAreas, ...bairrosBase]));
+      const optOutro = document.createElement("option");
+      optOutro.value = "__outro__";
+      optOutro.textContent = "Outro bairro (digitar)...";
+      selectBairro.appendChild(optOutro);
 
-    selectBairro.textContent = "";
-    const optPadrao = document.createElement("option");
-    optPadrao.value = "";
-    optPadrao.textContent = "Selecione seu bairro...";
-    selectBairro.appendChild(optPadrao);
+      if (valorAtual) selectBairro.value = valorAtual;
+    }
 
-    todosBairros.forEach((b) => {
-      const opt = document.createElement("option");
-      opt.value = b.trim();
-      opt.textContent = b.trim();
-      selectBairro.appendChild(opt);
-    });
+    // 2. Select de bairro do Calculador Sincronizado de Entrega no Carrinho
+    const selectCalcBairro = document.getElementById("carrinhoCalcBairro");
+    if (selectCalcBairro) {
+      const bairroSalvo = estado.localizacaoEntrega?.bairro || selectCalcBairro.value || "";
+      selectCalcBairro.textContent = "";
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "Selecione o bairro...";
+      selectCalcBairro.appendChild(opt0);
 
-    const optOutro = document.createElement("option");
-    optOutro.value = "__outro__";
-    optOutro.textContent = "Outro bairro (digitar)...";
-    selectBairro.appendChild(optOutro);
+      todosBairros.forEach((b) => {
+        const limpo = b.trim();
+        const opt = document.createElement("option");
+        opt.value = limpo;
+        opt.textContent = limpo;
+        selectCalcBairro.appendChild(opt);
+      });
 
-    if (valorAtual) selectBairro.value = valorAtual;
+      if (
+        bairroSalvo &&
+        !todosBairros.some((b) => b.trim().toLowerCase() === bairroSalvo.toLowerCase())
+      ) {
+        const optPersonalizado = document.createElement("option");
+        optPersonalizado.value = bairroSalvo;
+        optPersonalizado.textContent = bairroSalvo;
+        selectCalcBairro.appendChild(optPersonalizado);
+      }
+
+      const optOutroCalc = document.createElement("option");
+      optOutroCalc.value = "Outro bairro";
+      optOutroCalc.textContent = "Outro bairro da cidade";
+      selectCalcBairro.appendChild(optOutroCalc);
+
+      selectCalcBairro.value = bairroSalvo;
+    }
   }
 
   function atualizarInterfaceContaCliente() {
@@ -1485,7 +1622,9 @@
 
   function carregarAreaEntregaSalva() {
     try {
-      return localStorage.getItem(CHAVE_STORAGE_AREA_ENTREGA) || "";
+      const salvo = localStorage.getItem(CHAVE_STORAGE_AREA_ENTREGA) || "";
+      if (salvo === MODO_ENTREGA_CASA || salvo === AREA_RETIRADA) return salvo;
+      return "";
     } catch (_) {
       return "";
     }
@@ -1511,20 +1650,134 @@
     } catch (_) {}
   }
 
-  function obterAreaEntregaSelecionada() {
-    return (
-      estado.areasEntrega.find((a) => String(a.id) === String(estado.areaEntregaSelecionada)) ||
-      null
-    );
-  }
+  /**
+   * Calcula a taxa de entrega com base no País, Estado, Cidade e Bairro onde o cliente está,
+   * sincronizado com as regras da Plataforma de Entregas e com a tabela areas_entrega do Admin.
+   */
+  function calcularCotacaoEntregaPorLocalizacao(subtotalProdutos) {
+    const loc = estado.localizacaoEntrega || {
+      pais: "Brasil",
+      estado: "BA",
+      cidade: "Salvador",
+      bairro: ""
+    };
+    const pais = String(loc.pais || "Brasil").trim();
+    const uf = String(loc.estado || "BA").trim().toUpperCase();
+    const cidade = String(loc.cidade || "Salvador").trim();
+    const bairro = String(loc.bairro || "").trim();
+    const nomePlataforma = CFG.PLATAFORMA_ENTREGA_NOME || "Plataforma de Entregas";
 
-  function calcularFreteArea(area, subtotalProdutos) {
-    if (!area) return null;
-    const limiteGratis = area.gratis_acima;
-    if (limiteGratis !== null && limiteGratis !== undefined && subtotalProdutos >= Number(limiteGratis)) {
-      return 0;
+    // 1. Verifica se há regra personalizada cadastrada pelo Admin em areas_entrega para este bairro/cidade
+    if (bairro && Array.isArray(estado.areasEntrega) && estado.areasEntrega.length > 0) {
+      const areaMatch = estado.areasEntrega.find((a) => {
+        const nomeArea = String(a.nome || "").toLowerCase();
+        return (
+          nomeArea === bairro.toLowerCase() ||
+          nomeArea.includes(bairro.toLowerCase())
+        );
+      });
+      if (areaMatch) {
+        const gratisAcima =
+          areaMatch.gratis_acima !== null && areaMatch.gratis_acima !== undefined
+            ? Number(areaMatch.gratis_acima)
+            : null;
+        const valor =
+          gratisAcima !== null && subtotalProdutos >= gratisAcima
+            ? 0
+            : Number(areaMatch.valor) || 0;
+        return {
+          pronto: true,
+          valor,
+          gratisAcima,
+          descricaoDestino: `${bairro}, ${cidade}/${uf} - ${pais}`,
+          plataforma: nomePlataforma
+        };
+      }
     }
-    return Number(area.valor) || 0;
+
+    // 2. Cálculo baseado no País, Estado, Cidade e Bairro (sincronizado com a plataforma de entregas)
+    if (pais.toLowerCase() !== "brasil") {
+      return {
+        pronto: true,
+        valor: 149.9,
+        gratisAcima: null,
+        descricaoDestino: `${cidade} (${pais})`,
+        plataforma: `${nomePlataforma} Internacional`
+      };
+    }
+
+    // Outros estados do Brasil fora da Bahia (Envio Nacional via Plataforma / Transportadora / Correios)
+    if (uf !== "BA") {
+      const estadosNordeste = ["SE", "AL", "PE", "PB", "RN", "CE", "PI", "MA"];
+      const estadosSudesteCentro = ["SP", "RJ", "MG", "ES", "DF", "GO", "MS", "MT", "TO"];
+      let valorEstadual = 38.9;
+      if (estadosNordeste.includes(uf)) valorEstadual = 24.9;
+      else if (estadosSudesteCentro.includes(uf)) valorEstadual = 32.9;
+
+      return {
+        pronto: true,
+        valor: valorEstadual,
+        gratisAcima: 299.0,
+        descricaoDestino: `${bairro ? bairro + ", " : ""}${cidade}/${uf} - ${pais}`,
+        plataforma: nomePlataforma
+      };
+    }
+
+    // Dentro da Bahia (BA): verifica Cidade e Bairro
+    const cidadeLower = cidade.toLowerCase();
+    if (cidadeLower === "salvador" || cidadeLower === "lauro de freitas") {
+      if (!bairro) {
+        return {
+          pronto: false,
+          valor: 0,
+          gratisAcima: null,
+          descricaoDestino: `${cidade}/${uf} - ${pais}`,
+          plataforma: nomePlataforma
+        };
+      }
+
+      const bLower = bairro.toLowerCase();
+      const zonaCentral = ["centro", "nazaré", "barris", "campo grande", "graça", "comércio", "calçada", "mares", "roma", "bonfim", "ribeira", "liberdade", "cidade nova", "caixa d'água"];
+      const zonaSulBrotas = ["barra", "ondina", "rio vermelho", "federação", "brotas", "engenho velho de brotas", "acupe de brotas", "horto florestal", "candeal", "itaigara", "pituba", "parque bela vista", "caminho das árvores", "costa azul", "stiep", "armação", "jardim armação"];
+      const zonaCabulaParalela = ["cabula", "resgate", "pernambués", "saramandaia", "narandiba", "saboeiro", "tancredo neves", "sussuarana", "mata escura", "pau da Lima", "são marcos", "são rafael", "paralela", "imbuí", "boca do rio", "patamares", "piatã"];
+
+      let taxaBairro = 14.0;
+      let gratisAcima = 180.0;
+
+      if (cidadeLower === "lauro de freitas" || ["vilas do atlântico", "buraquinho", "ipitanga", "itinga", "centro (lauro de freitas)", "caji", "portão", "abrantes"].includes(bLower)) {
+        taxaBairro = 18.0;
+        gratisAcima = 220.0;
+      } else if (zonaCentral.includes(bLower)) {
+        taxaBairro = 8.0;
+        gratisAcima = 120.0;
+      } else if (zonaSulBrotas.includes(bLower)) {
+        taxaBairro = 11.0;
+        gratisAcima = 150.0;
+      } else if (zonaCabulaParalela.includes(bLower)) {
+        taxaBairro = 12.0;
+        gratisAcima = 160.0;
+      }
+
+      const valorFinal = subtotalProdutos >= gratisAcima ? 0 : taxaBairro;
+      return {
+        pronto: true,
+        valor: valorFinal,
+        gratisAcima,
+        descricaoDestino: `${bairro}, ${cidade}/${uf} - ${pais}`,
+        plataforma: nomePlataforma
+      };
+    }
+
+    // Demais cidades da Região Metropolitana ou Interior da Bahia
+    const rmsCidades = ["camaçari", "simões filho", "candeias"];
+    const taxaCidadeBa = rmsCidades.includes(cidadeLower) ? 19.9 : 22.9;
+    return {
+      pronto: true,
+      valor: subtotalProdutos >= 250 ? 0 : taxaCidadeBa,
+      gratisAcima: 250.0,
+      descricaoDestino: `${bairro ? bairro + ", " : ""}${cidade}/${uf} - ${pais}`,
+      plataforma: nomePlataforma
+    };
   }
 
   function calcularTaxaPagamento(valorBase) {
@@ -1538,15 +1791,16 @@
   function renderizarEntregaCarrinho(subtotalProdutos) {
     const bloco = document.getElementById("blocoEntregaCarrinho");
     const select = document.getElementById("selectAreaEntrega");
+    const blocoEnderecoCalc = document.getElementById("blocoEnderecoCalculoEntrega");
+    const elResumoPlataforma = document.getElementById("resumoPlataformaEntrega");
     const aviso = document.getElementById("avisoAreaEntrega");
     const linhasFrete = document.getElementById("linhasFreteCarrinho");
     const avisoPagamento = document.getElementById("carrinhoAvisoPagamento");
-    const blocoPagamento = document.getElementById("blocoPagamentoCarrinho");
+    const blocoPagamento = document.getElementById("blocoMetodoPagamentoCarrinho");
     const selectPag = document.getElementById("selectMetodoPagamentoCarrinho");
     const avisoTaxaPag = document.getElementById("avisoTaxaPagamentoCarrinho");
     const blocoMaior18 = document.getElementById("blocoConfirmacaoMaiorIdadeCarrinho");
     const exibir = estado.carrinho.length > 0;
-    const temAreas = estado.areasEntrega.length > 0;
 
     if (bloco) bloco.style.display = exibir ? "block" : "none";
     if (blocoPagamento) blocoPagamento.style.display = exibir ? "block" : "none";
@@ -1557,35 +1811,19 @@
       blocoMaior18.style.display = exigeMaior18 ? "block" : "none";
     }
 
-    if (
-      estado.areaEntregaSelecionada &&
-      estado.areaEntregaSelecionada !== AREA_FORA_DA_LISTA &&
-      estado.areaEntregaSelecionada !== AREA_RETIRADA &&
-      !obterAreaEntregaSelecionada()
-    ) {
-      estado.areaEntregaSelecionada = "";
-      salvarAreaEntrega();
+    // Sincroniza localização do cliente logado caso ainda esteja vazia
+    if (estado.clienteLogado && !estado.localizacaoEntrega.bairro) {
+      sincronizarLocalizacaoComClienteLogado(estado.clienteLogado);
     }
 
+    // O select de recebimento tem APENAS "Entrega em casa" e "Retirada no local"
     if (select) {
       select.textContent = "";
       const opcoes = [
-        { valor: "", texto: "Selecione: entrega em casa ou retirada..." },
-        { valor: AREA_RETIRADA, texto: "🏪 Retirar no local — Grátis (sem taxa de entrega)" }
+        { valor: "", texto: "Selecione: Entrega em casa ou Retirada..." },
+        { valor: MODO_ENTREGA_CASA, texto: "🚚 Entrega em casa" },
+        { valor: AREA_RETIRADA, texto: "🏪 Retirada no local (Grátis)" }
       ];
-      estado.areasEntrega.forEach((area) => {
-        const frete = calcularFreteArea(area, subtotalProdutos);
-        opcoes.push({
-          valor: String(area.id),
-          texto: `🚚 Entrega em casa: ${area.nome} — ${frete === 0 ? "Grátis" : formatarMoeda(frete)}`
-        });
-      });
-      opcoes.push({
-        valor: AREA_FORA_DA_LISTA,
-        texto: temAreas
-          ? "🚚 Entrega em casa: outro bairro (taxa padrão R$ 15,00)"
-          : "🚚 Entrega em casa (taxa padrão R$ 15,00)"
-      });
       opcoes.forEach((op) => {
         const opt = document.createElement("option");
         opt.value = op.valor;
@@ -1593,6 +1831,24 @@
         select.appendChild(opt);
       });
       select.value = estado.areaEntregaSelecionada || "";
+    }
+
+    // Se escolheu Entrega em casa, exibe os seletores sincronizados de País, Estado, Cidade e Bairro
+    const ehEntregaCasa = exibir && estado.areaEntregaSelecionada === MODO_ENTREGA_CASA;
+    if (blocoEnderecoCalc) {
+      blocoEnderecoCalc.style.display = ehEntregaCasa ? "block" : "none";
+    }
+
+    if (ehEntregaCasa) {
+      popularSelectBairrosCadastroCliente();
+      const selPais = document.getElementById("carrinhoCalcPais");
+      const selEstado = document.getElementById("carrinhoCalcEstado");
+      const selCidade = document.getElementById("carrinhoCalcCidade");
+      const selBairro = document.getElementById("carrinhoCalcBairro");
+      if (selPais) selPais.value = estado.localizacaoEntrega.pais || "Brasil";
+      if (selEstado) selEstado.value = estado.localizacaoEntrega.estado || "BA";
+      if (selCidade) selCidade.value = estado.localizacaoEntrega.cidade || "Salvador";
+      if (selBairro) selBairro.value = estado.localizacaoEntrega.bairro || "";
     }
 
     if (selectPag) {
@@ -1609,27 +1865,52 @@
       selectPag.value = estado.metodoPagamentoSelecionado || "pix";
     }
 
-    const area = obterAreaEntregaSelecionada();
-    let frete = calcularFreteArea(area, subtotalProdutos);
-    if (estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA) {
-      frete = 15.0;
-    } else if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
+    let frete = null;
+    let cotacao = null;
+    if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
       frete = 0;
+    } else if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
+      cotacao = calcularCotacaoEntregaPorLocalizacao(subtotalProdutos);
+      frete = cotacao.pronto ? cotacao.valor : null;
+    }
+
+    if (elResumoPlataforma) {
+      if (!ehEntregaCasa) {
+        elResumoPlataforma.textContent = "";
+      } else if (cotacao && cotacao.pronto) {
+        elResumoPlataforma.textContent = `🔄 ${cotacao.plataforma} • ${cotacao.descricaoDestino}: ${
+          cotacao.valor === 0 ? "Frete Grátis" : formatarMoeda(cotacao.valor)
+        }`;
+      } else {
+        elResumoPlataforma.textContent =
+          "👆 Selecione seu Bairro, Cidade, Estado e País acima para calcular o frete.";
+      }
     }
 
     const elFrete = document.getElementById("carrinhoFreteValor");
     if (elFrete) {
       if (estado.areaEntregaSelecionada === AREA_RETIRADA) {
-        elFrete.textContent = "Retirada (grátis)";
-      } else if (frete === null) {
-        elFrete.textContent = "Escolha uma opção";
+        elFrete.textContent = "Retirada (Grátis)";
+      } else if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
+        if (cotacao && cotacao.pronto) {
+          elFrete.textContent = cotacao.valor === 0 ? "Grátis" : formatarMoeda(cotacao.valor);
+        } else {
+          elFrete.textContent = "Selecione o bairro";
+        }
       } else {
-        elFrete.textContent = frete === 0 ? "Grátis" : formatarMoeda(frete);
+        elFrete.textContent = "Escolha uma opção";
       }
     }
 
     const baseCalculoTaxa = subtotalProdutos + (frete || 0);
     const taxaPagamento = calcularTaxaPagamento(baseCalculoTaxa);
+    const elRotuloTaxa = document.getElementById("carrinhoRotuloTaxaPagamento");
+    if (elRotuloTaxa) {
+      elRotuloTaxa.textContent =
+        estado.metodoPagamentoSelecionado === "cartao"
+          ? `Taxa Cartão (${CFG.TAXA_CARTAO_MERCADO_PAGO_PCT || 4.99}%):`
+          : "Taxa de pagamento (Pix):";
+    }
     const elTaxaPag = document.getElementById("carrinhoTaxaPagamentoValor");
     if (elTaxaPag) {
       elTaxaPag.textContent =
@@ -1639,18 +1920,21 @@
     if (avisoTaxaPag) {
       avisoTaxaPag.textContent =
         taxaPagamento > 0
-          ? `Taxa da maquininha/Mercado Pago de ${formatarMoeda(taxaPagamento)} adicionada ao total.`
+          ? `Taxa do Mercado Pago (${formatarMoeda(taxaPagamento)}) somada automaticamente.`
           : "No Pix você não paga nenhuma taxa adicional.";
     }
 
     if (aviso) {
       const faltaParaGratis =
-        area && area.gratis_acima !== null && area.gratis_acima !== undefined && frete > 0
-          ? Number(area.gratis_acima) - subtotalProdutos
+        cotacao &&
+        cotacao.pronto &&
+        cotacao.gratisAcima !== null &&
+        cotacao.valor > 0
+          ? Number(cotacao.gratisAcima) - subtotalProdutos
           : 0;
       aviso.textContent =
         faltaParaGratis > 0
-          ? `Faltam ${formatarMoeda(faltaParaGratis)} em produtos para ganhar frete grátis neste bairro!`
+          ? `Faltam ${formatarMoeda(faltaParaGratis)} em produtos para ganhar frete grátis na sua região!`
           : "";
     }
 
@@ -1882,9 +2166,24 @@
     }
 
     if (!estado.areaEntregaSelecionada) {
-      mostrarToast("Escolha como quer receber (entrega em casa ou retirada) antes de finalizar.");
+      mostrarToast("Escolha como quer receber (Entrega em casa ou Retirada) antes de finalizar.");
       document.getElementById("selectAreaEntrega")?.focus();
       return;
+    }
+
+    if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
+      const subtotal = estado.carrinho.reduce(
+        (acc, item) => acc + Number(item.preco_venda) * item.quantidade,
+        0
+      );
+      const cotacao = calcularCotacaoEntregaPorLocalizacao(subtotal);
+      if (!cotacao.pronto) {
+        mostrarToast(
+          "📍 Selecione seu Bairro, Cidade, Estado e País para calcular a entrega antes de finalizar."
+        );
+        document.getElementById("carrinhoCalcBairro")?.focus();
+        return;
+      }
     }
 
     // Verificação obrigatória +18 para bebidas alcoólicas
@@ -1952,11 +2251,11 @@
       (acc, item) => acc + Number(item.preco_venda) * item.quantidade,
       0
     );
-    const area = obterAreaEntregaSelecionada();
-    let frete = calcularFreteArea(area, subtotalProdutos);
-    if (estado.areaEntregaSelecionada === AREA_FORA_DA_LISTA) frete = 15.0;
-    else if (estado.areaEntregaSelecionada === AREA_RETIRADA) frete = 0;
-    else frete = frete || 0;
+    const cotacao = calcularCotacaoEntregaPorLocalizacao(subtotalProdutos);
+    let frete = 0;
+    if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
+      frete = cotacao.pronto ? cotacao.valor : 0;
+    }
 
     const taxaPag = calcularTaxaPagamento(subtotalProdutos + frete);
     const totalFinal = subtotalProdutos + frete + taxaPag;
@@ -1980,7 +2279,7 @@
       criarLinha(
         estado.areaEntregaSelecionada === AREA_RETIRADA
           ? "Recebimento (Retirada no local):"
-          : `Entrega em casa (${area ? area.nome : "Taxa padrão"}):`,
+          : `Entrega em casa (${cotacao.descricaoDestino}):`,
         frete === 0 ? "Grátis" : formatarMoeda(frete)
       )
     );
@@ -2380,6 +2679,30 @@
       salvarAreaEntrega();
       atualizarInterfaceCarrinho();
     });
+
+    // Seletores de País, Estado, Cidade e Bairro do Calculador Sincronizado de Entrega no Carrinho
+    const atualizarLocalizacaoCarrinho = () => {
+      estado.localizacaoEntrega = {
+        pais: document.getElementById("carrinhoCalcPais")?.value || "Brasil",
+        estado: document.getElementById("carrinhoCalcEstado")?.value || "BA",
+        cidade: document.getElementById("carrinhoCalcCidade")?.value || "Salvador",
+        bairro: document.getElementById("carrinhoCalcBairro")?.value || ""
+      };
+      salvarLocalizacaoEntrega();
+      atualizarInterfaceCarrinho();
+    };
+    document
+      .getElementById("carrinhoCalcPais")
+      ?.addEventListener("change", atualizarLocalizacaoCarrinho);
+    document
+      .getElementById("carrinhoCalcEstado")
+      ?.addEventListener("change", atualizarLocalizacaoCarrinho);
+    document
+      .getElementById("carrinhoCalcCidade")
+      ?.addEventListener("change", atualizarLocalizacaoCarrinho);
+    document
+      .getElementById("carrinhoCalcBairro")
+      ?.addEventListener("change", atualizarLocalizacaoCarrinho);
 
     document.getElementById("selectMetodoPagamentoCarrinho")?.addEventListener("change", (e) => {
       estado.metodoPagamentoSelecionado = e.target.value;
