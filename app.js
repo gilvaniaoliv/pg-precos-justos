@@ -2931,9 +2931,14 @@
     });
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch((erro) => {
-        console.warn("Service worker não registrado:", erro);
-      });
+      navigator.serviceWorker
+        .register("sw.js?v=4")
+        .then((reg) => {
+          reg.update().catch(() => {});
+        })
+        .catch((erro) => {
+          console.warn("Service worker não registrado:", erro);
+        });
     }
 
     document.querySelectorAll(".link-instalar-app").forEach((link) => {

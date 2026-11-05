@@ -386,8 +386,10 @@
   width: 76px;
   height: 76px;
   border-radius: 10px;
-  object-fit: cover;
-  background-color: #eae9e2;
+  object-fit: contain;
+  background-color: #ffffff;
+  border: 1px solid var(--cor-borda);
+  padding: 3px;
   flex-shrink: 0;
 }
 

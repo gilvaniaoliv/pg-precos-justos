@@ -5,20 +5,21 @@
  * usa a cópia salva quando a pessoa estiver sem internet.
  * Dados do Supabase e outros sites externos nunca são guardados aqui.
  */
-const CACHE = "pg-precos-justos-v1";
+const CACHE = "pg-precos-justos-v4";
 const ARQUIVOS_BASE = [
   "./",
   "./index.html",
-  "./style.css",
-  "./app.js",
-  "./config.js",
+  "./style.css?v=4",
+  "./app.js?v=4",
+  "./config.js?v=4",
   "./img/logo-horizontal.png",
   "./img/icone-192.png"
 ];
 
 self.addEventListener("install", (evento) => {
+  self.skipWaiting();
   evento.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ARQUIVOS_BASE)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) => cache.addAll(ARQUIVOS_BASE)).catch(() => {})
   );
 });
 
@@ -40,7 +41,7 @@ self.addEventListener("fetch", (evento) => {
   if (url.pathname.includes("/admin/")) return;
 
   evento.respondWith(
-    fetch(req, { cache: "no-cache" })
+    fetch(req, { cache: "reload" })
       .then((resposta) => {
         if (resposta.ok) {
           const copia = resposta.clone();
@@ -49,7 +50,7 @@ self.addEventListener("fetch", (evento) => {
         return resposta;
       })
       .catch(() =>
-        caches.match(req).then((salvo) => salvo || caches.match("./index.html"))
+        caches.match(req, { ignoreSearch: true }).then((salvo) => salvo || caches.match("./index.html"))
       )
   );
 });
