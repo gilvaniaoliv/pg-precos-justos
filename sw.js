@@ -5,7 +5,7 @@
  * usa a cópia salva quando a pessoa estiver sem internet.
  * Dados do Supabase e outros sites externos nunca são guardados aqui.
  */
-const CACHE = "pg-precos-justos-v5";
+const CACHE = "pg-precos-justos-v6";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
