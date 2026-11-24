@@ -194,6 +194,40 @@ testar("Storage de fotos permite leitura pública mas restringe upload, edição
   );
 });
 
+testar("Pedido da vitrine recalcula preços e total NO BANCO (não confia nos valores do navegador)", () => {
+  const matchFuncao = sqlContent.match(
+    /CREATE OR REPLACE FUNCTION public\.registrar_pedido_vitrine\(([\s\S]*?)\n\$\$;/
+  );
+  afirmar(Boolean(matchFuncao), "Função registrar_pedido_vitrine não encontrada");
+  const corpo = matchFuncao[1];
+
+  afirmar(
+    /SELECT[\s\S]*?preco_venda[\s\S]*?FROM public\.produtos/.test(corpo),
+    "A função deve buscar o preco_venda real na tabela produtos"
+  );
+  afirmar(
+    corpo.includes("v_subtotal := v_subtotal + v_produto.preco_venda * v_qtd"),
+    "O subtotal deve ser somado a partir dos preços do banco"
+  );
+  afirmar(
+    corpo.includes("v_produto.estoque < v_qtd"),
+    "A função deve recusar pedido acima do estoque"
+  );
+  afirmar(
+    corpo.includes("v_tem_maior_idade") && corpo.includes("interval '18 years'"),
+    "A função deve validar a idade para produtos +18"
+  );
+
+  // O INSERT não pode usar os valores enviados pelo navegador
+  const valores = corpo.slice(corpo.indexOf("VALUES ("));
+  ["p_subtotal", "p_taxa", "p_valor_total", "p_itens"].forEach((param) => {
+    afirmar(
+      !new RegExp(`\\b${param}\\b`).test(valores),
+      `O INSERT do pedido não pode gravar ${param} vindo do navegador`
+    );
+  });
+});
+
 // ----------------------------------------------------------------------------
 // BLOCO 3: REGRAS DE NEGÓCIO DA VITRINE (PREÇO MÉDIO E ESTOQUE)
 // ----------------------------------------------------------------------------

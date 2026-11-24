@@ -2400,7 +2400,9 @@
       endereco: ""
     };
 
-    const subtotalProdutos = estado.carrinho.reduce(
+    // Valores mostrados na tela; se o pedido for salvo no banco, os valores
+    // calculados pelo banco (com os preços reais) substituem estes.
+    let subtotalProdutos = estado.carrinho.reduce(
       (acc, item) => acc + Number(item.preco_venda) * item.quantidade,
       0
     );
@@ -2409,14 +2411,15 @@
     if (estado.areaEntregaSelecionada === MODO_ENTREGA_CASA) {
       frete = cotacao.pronto ? cotacao.valor : 0;
     }
-    const taxaPag = calcularTaxaPagamento(subtotalProdutos + frete);
-    const totalFinal = subtotalProdutos + frete + taxaPag;
+    let taxaPag = calcularTaxaPagamento(subtotalProdutos + frete);
+    let totalFinal = subtotalProdutos + frete + taxaPag;
     const metodoNome =
       estado.metodoPagamentoSelecionado === "cartao"
         ? "Cartão de Crédito / Débito (Mercado Pago)"
         : "Pix (0% Taxa - Mercado Pago)";
 
-    const codigoPedido = `PG-${Date.now().toString(36).toUpperCase()}`;
+    let codigoPedido = `PG-${Date.now().toString(36).toUpperCase()}`;
+    let itensConfirmados = estado.carrinho;
     const enderecoFormatado =
       estado.areaEntregaSelecionada === AREA_RETIRADA
         ? `Retirada no local: ${CFG.ENDERECO_RETIRADA_LOJA || "Salvador - BA"}`
@@ -2424,8 +2427,9 @@
 
     // 1. Salvar no Supabase se disponível
     if (supabaseInstancia) {
+      let respostaBanco = null;
       try {
-        await supabaseInstancia.rpc("registrar_pedido_vitrine", {
+        respostaBanco = await supabaseInstancia.rpc("registrar_pedido_vitrine", {
           p_cliente_id: cliente.id && !String(cliente.id).startsWith("cli-") ? cliente.id : null,
           p_cliente_nome: cliente.nome,
           p_cliente_email: cliente.email || "",
@@ -2448,6 +2452,23 @@
         });
       } catch (errDb) {
         console.warn("Aviso ao registrar pedido no banco:", errDb);
+      }
+
+      // O banco recusou o pedido (produto indisponível, estoque, idade...): não segue para o WhatsApp
+      if (respostaBanco && respostaBanco.error) {
+        mostrarToast(`⚠️ ${respostaBanco.error.message || "Não foi possível registrar o pedido."}`);
+        return;
+      }
+
+      // Usa os valores calculados pelo banco com os preços reais
+      const pedidoBanco = respostaBanco && respostaBanco.data;
+      if (pedidoBanco && pedidoBanco.subtotal !== undefined && pedidoBanco.valor_total !== undefined) {
+        codigoPedido = pedidoBanco.codigo_pedido || codigoPedido;
+        subtotalProdutos = Number(pedidoBanco.subtotal);
+        frete = Number(pedidoBanco.frete);
+        taxaPag = Number(pedidoBanco.taxa);
+        totalFinal = Number(pedidoBanco.valor_total);
+        if (Array.isArray(pedidoBanco.itens)) itensConfirmados = pedidoBanco.itens;
       }
     }
 
@@ -2473,7 +2494,7 @@
     } catch (_) {}
 
     // 3. Montar mensagem formatada para o WhatsApp do lojista
-    const linhasItens = estado.carrinho
+    const linhasItens = itensConfirmados
       .map(
         (it) =>
           `• ${it.quantidade}x ${it.nome} — ${formatarMoeda(

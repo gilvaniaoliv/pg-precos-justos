@@ -48,7 +48,7 @@ O site é estático e conversa direto com o Supabase usando apenas a chave públ
 - **Visitantes** só leem a view `produtos_publicos`, que não contém custo, preço mínimo nem fontes de pesquisa, e só mostra produtos ativos.
 - A tabela completa de **produtos**, as **vendas** e os **clientes** ficam bloqueadas para visitantes (`REVOKE ALL` + políticas RLS).
 - **Vendas** são registradas por uma função SQL (`registrar_venda_admin`) que bloqueia a linha do produto durante a transação, evitando estoque incorreto, e só pode ser executada por administradores.
-- **Pedidos** feitos na vitrine entram por uma função SQL própria (`registrar_pedido_vitrine`); a tabela de pedidos fica bloqueada para leitura pública.
+- **Pedidos** feitos na vitrine entram por uma função SQL própria (`registrar_pedido_vitrine`) que **não confia nos valores do navegador**: busca o preço real de cada produto, confere estoque e idade para itens +18, calcula a taxa e grava o total calculado no banco. A tabela de pedidos fica bloqueada para leitura pública.
 - **Avaliações** podem ser lidas e enviadas por visitantes, mas só os administradores editam ou apagam.
 - **Clientes da vitrine** ficam em tabela própria, com senha criptografada (bcrypt). O Supabase Auth é reservado para os administradores.
 - **Fotos**: leitura pública; upload, edição e exclusão só para administradores, com limite de 5 MB e tipos de imagem permitidos.
@@ -100,7 +100,8 @@ O site é estático e conversa direto com o Supabase usando apenas a chave públ
 node tests/run-tests.js
 ```
 
-São 13 testes que verificam:
+São 14 testes que verificam:
+- que o total do pedido é calculado no banco, e não aceito do navegador;
 - ausência da chave `service_role` no código;
 - políticas de acesso no banco (o que visitantes podem e não podem ler ou alterar);
 - regras de exibição do preço médio de mercado;
